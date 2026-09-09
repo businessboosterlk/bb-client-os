@@ -23,11 +23,21 @@ export async function runSelftest(cast: CastService, data: DataService){
   const desk = innerWidth >= 1020;
   const rail = document.querySelector('.rail') as HTMLElement | null;
   const tabs = document.querySelector('.tabs') as HTMLElement | null;
-  ok('nav matches width: rail on desk, tab bar on phone', !!rail && !!tabs && (desk ? getComputedStyle(rail).visibility !== 'hidden' && getComputedStyle(tabs).display === 'none' : getComputedStyle(tabs).display !== 'none'), innerWidth + 'px');
-  ok('rail carries two groups, Library and Sales, with a divider', document.querySelectorAll('.rail .grp').length === 2 && !!document.querySelector('.rail hr.div'));
-  ok('the other system starts collapsed', document.querySelectorAll('.rail .grp.off').length === 1);
-  ok('every icon is a stroke svg, none an image or emoji', [...document.querySelectorAll('bb-icon svg')].length > 0 && [...document.querySelectorAll('.rail nav a')].every(a => a.querySelector('svg')));
-  ok('tap targets in the rail and tab bar are 40px or taller', [...document.querySelectorAll('.rail nav a, .tabs a')].filter(a => a.getBoundingClientRect().height > 0).every(a => a.getBoundingClientRect().height >= 40));
+  if (rail && tabs) {
+    ok('nav matches width: rail on desk, tab bar on phone', desk ? getComputedStyle(rail).visibility !== 'hidden' && getComputedStyle(tabs).display === 'none' : getComputedStyle(tabs).display !== 'none', innerWidth + 'px');
+    ok('rail carries two groups, Library and Sales, with a divider', document.querySelectorAll('.rail .grp').length === 2 && !!document.querySelector('.rail hr.div'));
+    ok('the other system starts collapsed', document.querySelectorAll('.rail .grp.off').length === 1);
+    ok('every icon is a stroke svg, none an image or emoji', [...document.querySelectorAll('bb-icon svg')].length > 0 && [...document.querySelectorAll('.rail nav a')].every(a => a.querySelector('svg')));
+    ok('tap targets in the rail and tab bar are 40px or taller', [...document.querySelectorAll('.rail nav a, .tabs a')].filter(a => a.getBoundingClientRect().height > 0).every(a => a.getBoundingClientRect().height >= 40));
+  } else {
+    /* no shell on this screen: it must be the door or the launcher, and each has its own anatomy */
+    const door = document.querySelector('.login-card'), doors = document.querySelectorAll('.door');
+    ok('a screen without the shell is the door or the launcher', !!door || doors.length === 2, door ? 'login' : doors.length + ' doors');
+    ok('the door lists every cast user and one PIN field', !door || (document.querySelectorAll('.who button').length === (c.users || []).length && !!document.getElementById('pin')));
+    ok('the PIN field cannot zoom the page on a phone', !door || parseFloat(getComputedStyle(document.getElementById('pin')!).fontSize) >= (matchMedia('(pointer:coarse)').matches ? 16 : 14));
+    ok('the launcher offers exactly two doors, Library and Sales', !!door || (doors.length === 2 && /library/i.test(doors[0].textContent || '') && /sales/i.test(doors[1].textContent || '')));
+    ok('sign in and the doors are 44px or taller', [...document.querySelectorAll('.login-card .btn, .who button, .door')].every(a => a.getBoundingClientRect().height >= 44));
+  }
   ok('a local number becomes a real WhatsApp link', waLink('0771234567', 'X') === 'https://wa.me/94771234567?text=Hello%20X%2C%20' && waLink('', 'X') === '');
   /* behaviour, on a throwaway store */
   const real = localStorage.getItem('bbos_' + c.slug);
