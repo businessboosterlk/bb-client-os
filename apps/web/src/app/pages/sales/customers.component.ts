@@ -1,4 +1,5 @@
-import { Component, inject, computed, signal } from '@angular/core';
+import { Component, inject, computed, signal, OnInit, OnDestroy } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CastService } from '../../core/cast.service';
 import { DataService, waLink, niceDate, daysSince } from '../../core/data.service';

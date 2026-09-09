@@ -5,6 +5,7 @@ import { CastService } from '../core/cast.service';
 import { SessionService } from '../core/session.service';
 import { DataService } from '../core/data.service';
 import { IconComponent } from '../ui/icon.component';
+import { BottomMenuComponent, MenuTab, MenuAction } from './bottom-menu.component';
 
 /* one colour at the top: the status strip and the browser chrome take the colour of
    the screen they sit on. Cream inside the app, the dark ink only on the door. */
@@ -22,7 +23,7 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
 @Component({
   selector: 'bb-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, BottomMenuComponent],
   template: `
     <div class="scrim" [class.on]="railOpen()" (click)="railOpen.set(false)"></div>
     <aside class="rail" [class.open]="railOpen()" aria-label="Navigation">
@@ -67,14 +68,7 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
         </div>
       </header>
       <main class="page"><router-outlet/></main>
-      <nav class="tabs" aria-label="Screens">
-        @for (it of tabs(); track it.path) {
-          <a [routerLink]="'/' + system() + '/' + it.path" routerLinkActive="on">
-            <bb-icon [name]="it.icon"/><span>{{ it.label }}</span>
-            @if (it.badge && it.badge() > 0) { <i class="dot"></i> }
-          </a>
-        }
-      </nav>
+      <bb-bottom-menu class="tabs" [items]="tabs()" [active]="activeUrl()"/>
     </div>`,
   styles: [`
     :host{display:block}
@@ -119,11 +113,7 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
       .topbar{padding:var(--sat) 12px 0 8px}
       .page{padding:16px 16px calc(84px + var(--sab))}
       .btn.wa .lbl{display:none}.btn.wa.sm{width:38px;padding:0;border-radius:10px}
-      .tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);
-        padding:6px 6px calc(6px + var(--sab));background:rgba(255,255,255,.92);backdrop-filter:saturate(160%) blur(14px);-webkit-backdrop-filter:saturate(160%) blur(14px);border-top:1px solid var(--line)}
-      .tabs a{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:48px;padding:6px 2px;border-radius:10px;color:var(--muted);font-size:10.5px;font-weight:600;white-space:nowrap}
-      .tabs a bb-icon{--ico:20px}.tabs a.on{color:var(--brand-dark)}
-      .tabs a .dot{position:absolute;top:6px;right:calc(50% - 14px);width:7px;height:7px;border-radius:50%;background:var(--brand)}
+      .tabs{display:block}
     }`]
 })
 export class ShellComponent implements OnInit, OnDestroy {
@@ -146,7 +136,23 @@ export class ShellComponent implements OnInit, OnDestroy {
       { path: 'pipeline', label: 'Pipeline', icon: 'pipe', badge: () => this.data.dueTasks().length + this.data.stale().length },
       { path: 'customers', label: 'Customers', icon: 'users' } ] }
   ];
-  tabs = computed(() => this.groups.find(g => g.key === this.system())!.items);
+  activeUrl = signal('');
+  /* the phone bar: every tab carries the quick actions that screen offers */
+  tabs = computed<MenuTab[]>(() => {
+    const sys = this.system(); const c = this.cast.cast();
+    const months = (m: 'videos' | 'posts'): MenuAction[] => (c?.library.months || []).filter(x => x[m].length).slice(0, 6)
+      .map(x => ({ label: x.label + ' ' + x.id.slice(0, 4), icon: m === 'videos' ? 'video' : 'post', link: '/library/' + m, params: { m: x.id } }));
+    const menus: Record<string, MenuAction[]> = {
+      month: [ { label: 'Message Business Booster', icon: 'wa', href: this.wa() }, { label: 'Your sales', icon: 'pipe', link: '/sales' } ],
+      videos: months('videos'), posts: months('posts'), docs: [],
+      business: [ { label: 'Update a detail', icon: 'edit', href: `https://wa.me/${c?.wa}?text=${encodeURIComponent(`Hello, this is ${c?.name} [OS]. One of the business details needs updating: `)}` } ],
+      dashboard: [ { label: 'New ' + this.cast.word('enquiry', 'enquiry').toLowerCase(), icon: 'plus', link: '/sales/enquiries', params: { add: 1 } }, { label: 'Your library', icon: 'video', link: '/library' }, { label: 'Sign out', icon: 'out', run: () => this.out() } ],
+      enquiries: [ { label: 'New ' + this.cast.word('enquiry', 'enquiry').toLowerCase(), icon: 'plus', link: '/sales/enquiries', params: { add: 1 } }, { label: 'Waiting', icon: 'inbox', link: '/sales/enquiries', params: { f: 'new' } }, { label: 'Everything', icon: 'list', link: '/sales/enquiries', params: { f: 'all' } } ],
+      pipeline: [ { label: 'Board', icon: 'board', link: '/sales/pipeline', params: { view: 'board' } }, { label: 'List', icon: 'list', link: '/sales/pipeline', params: { view: 'list' } }, { label: 'New deal', icon: 'plus', link: '/sales/pipeline', params: { add: 1 } } ],
+      customers: [ { label: 'New ' + this.cast.word('customer', 'customer').toLowerCase(), icon: 'plus', link: '/sales/customers', params: { add: 1 } } ]
+    };
+    return this.groups.find(g => g.key === sys)!.items.map(it => ({ ...it, path: '/' + sys + '/' + it.path, menu: menus[it.path] || [] }));
+  });
   role = computed(() => this.cast.cast()?.users.find(u => u.name === this.session.user())?.role || '');
   wa = computed(() => `https://wa.me/${this.cast.cast()?.wa}?text=${encodeURIComponent(`Hello, this is ${this.session.user()} from ${this.cast.cast()?.name} [OS].`)}`);
 
@@ -161,7 +167,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.tick(); this.timer = setInterval(() => this.tick(), 15000);
   }
   ngOnDestroy(){ document.body.classList.remove('in-shell'); clearInterval(this.timer); this.sub?.unsubscribe(); }
-  private readTitle(){ let r = this.route; while (r.firstChild) r = r.firstChild; this.title.set(r.snapshot.data['title'] || ''); }
+  private readTitle(){ let r = this.route; while (r.firstChild) r = r.firstChild; this.title.set(r.snapshot.data['title'] || ''); this.activeUrl.set(this.router.url.split('?')[0]); }
   private tick(){ const d = new Date(); const D = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     this.clock.set(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} · ${D[d.getDay()]} ${d.getDate()} ${M[d.getMonth()]}`); }
   toggle(k: string){ const s = new Set(this.collapsed()); s.has(k) ? s.delete(k) : s.add(k); this.collapsed.set(s); }

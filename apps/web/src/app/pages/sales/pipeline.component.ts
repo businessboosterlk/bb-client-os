@@ -1,4 +1,4 @@
-import { Component, inject, computed, signal, OnInit } from '@angular/core';
+import { Component, inject, computed, signal, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
@@ -117,7 +117,7 @@ import { IconComponent } from '../../ui/icon.component';
     .acts{text-align:right}
     @media (max-width:760px){.col{flex-basis:84vw}.board{scroll-snap-type:x mandatory}}`]
 })
-export class PipelineComponent implements OnInit {
+export class PipelineComponent implements OnInit, OnDestroy {
   cast = inject(CastService); data = inject(DataService); private route = inject(ActivatedRoute);
   waLink = waLink;
   view = signal<'board' | 'list'>('board'); adding = signal(false); sel = signal<Deal | null>(null);
@@ -126,8 +126,14 @@ export class PipelineComponent implements OnInit {
   stages = computed(() => this.cast.cast()?.stages || []);
   ngOnInit(){
     try { const v = localStorage.getItem('bbos_pipe_view'); if (v === 'list' || v === 'board') this.view.set(v); } catch {}
-    const id = this.route.snapshot.queryParams['open']; if (id) { const d = this.data.deals().find(x => x.id === id); if (d) this.sel.set(d); }
+    this.qs = this.route.queryParams.subscribe(p => {
+      if (p['open']) { const d = this.data.deals().find(x => x.id === p['open']); if (d) this.sel.set(d); }
+      if (p['view'] === 'board' || p['view'] === 'list') this.setView(p['view']);
+      if (p['add']) this.adding.set(true);
+    });
   }
+  private qs: any;
+  ngOnDestroy(){ this.qs?.unsubscribe(); }
   setView(v: 'board' | 'list'){ this.view.set(v); try { localStorage.setItem('bbos_pipe_view', v); } catch {} }
   open(d: Deal){ return d.stage !== 'won' && d.stage !== 'lost'; }
   quiet(d: Deal){ return daysSince(d.lastContactAt || d.stageAt || d.createdAt); }

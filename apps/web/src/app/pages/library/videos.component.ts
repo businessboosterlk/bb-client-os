@@ -1,4 +1,5 @@
-import { Component, inject, computed, signal } from '@angular/core';
+import { Component, inject, computed, signal, OnInit, OnDestroy } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { CastService } from '../../core/cast.service';
 import { LibRowComponent, monthLabel } from './lib.shared';
 
@@ -17,8 +18,11 @@ import { LibRowComponent, monthLabel } from './lib.shared';
       </div>
     } @else { <div class="card empty"><strong>Nothing here yet</strong>Your first month's videos will appear here.</div> }`
 })
-export class VideosComponent {
-  cast = inject(CastService);
+export class VideosComponent implements OnInit, OnDestroy {
+  cast = inject(CastService); private route = inject(ActivatedRoute);
+  private qs: any;
+  ngOnInit(){ this.qs = this.route.queryParams.subscribe(p => { if (p['m'] && this.months().some(m => m.id === p['m'])) this.sel.set(p['m']); }); }
+  ngOnDestroy(){ this.qs?.unsubscribe(); }
   months = computed(() => this.cast.cast()!.library.months.filter(m => m.videos.length));
   sel = signal(this.months()[0]?.id || '');
   current = computed(() => this.months().find(m => m.id === this.sel()));

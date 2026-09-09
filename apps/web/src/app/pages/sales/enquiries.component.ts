@@ -1,4 +1,4 @@
-import { Component, inject, computed, signal, OnInit } from '@angular/core';
+import { Component, inject, computed, signal, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CastService } from '../../core/cast.service';
@@ -103,13 +103,18 @@ import { IconComponent } from '../../ui/icon.component';
     .lnk{color:var(--brand-dark);font-weight:600;cursor:pointer}
     @media (max-width:760px){.desk{display:none}.phone{display:grid}.acts{display:none}}`]
 })
-export class EnquiriesComponent implements OnInit {
+export class EnquiriesComponent implements OnInit, OnDestroy {
   cast = inject(CastService); data = inject(DataService); private route = inject(ActivatedRoute); private router = inject(Router);
   waLink = waLink;
   q = signal(''); status = signal<string>('new'); adding = signal(false); sel = signal<Enquiry | null>(null); bad = signal(false);
   draft: Partial<Enquiry> = { name: '', phone: '', source: '', wants: '' };
   filters: [string, string][] = [['new', 'Waiting'], ['converted', 'Started'], ['closed', 'Not a fit'], ['all', 'All']];
-  ngOnInit(){ const p = this.route.snapshot.queryParams; if (p['add']) this.openAdd(); if (p['open']) { const e = this.data.enquiries().find(x => x.id === p['open']); if (e) this.sel.set(e); } }
+  private qs: any;
+  ngOnInit(){ this.qs = this.route.queryParams.subscribe(p => {
+    if (p['add']) this.openAdd();
+    if (p['f']) this.status.set(p['f']);
+    if (p['open']) { const e = this.data.enquiries().find(x => x.id === p['open']); if (e) this.sel.set(e); } }); }
+  ngOnDestroy(){ this.qs?.unsubscribe(); }
   rows = computed(() => { const s = this.status(), q = this.q().toLowerCase();
     return this.data.enquiries().filter(e => s === 'all' || e.status === s).filter(e => !q || [e.name, e.phone, e.wants, e.source].join(' ').toLowerCase().includes(q)); });
   count(s: string){ return s === 'all' ? this.data.enquiries().length : this.data.enquiries().filter(e => e.status === s).length; }
