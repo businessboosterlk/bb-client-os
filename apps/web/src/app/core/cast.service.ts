@@ -46,13 +46,12 @@ export class CastService {
     set('--brand-ink', toHex(mix(b, [12, 12, 14], .88)));
     set('--sidebar', toHex(mix(b, [12, 12, 14], .9)));
     set('--on-accent', lum(b) > .55 ? '#141417' : '#ffffff');
-    document.querySelector('meta[name=theme-color]')?.setAttribute('content', toHex(mix(b, [12, 12, 14], .9)));
     document.title = `${cast.name} · Your OS`;
     /* per-tenant manifest, so an install opens THIS client (L-028) */
     const m = document.getElementById('manifest') as HTMLLinkElement | null;
     if (m) {
       const man = { name: `${cast.name} · Your OS`, short_name: cast.short || cast.name, start_url: `./?c=${cast.slug}&src=app`,
-        display: 'standalone', background_color: '#f5f5f7', theme_color: toHex(mix(b, [12, 12, 14], .9)),
+        display: 'standalone', background_color: '#f5f5f7', theme_color: '#f5f5f7',
         icons: [{ src: new URL('assets/bb-logo.png', location.href).href, sizes: '512x512', type: 'image/png' }] };
       m.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(man));
     }

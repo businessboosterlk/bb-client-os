@@ -15,6 +15,16 @@ export async function runSelftest(cast: CastService, data: DataService){
   ok('manifest swapped per tenant', ((document.getElementById('manifest') as HTMLLinkElement)?.href || '').includes(encodeURIComponent(c.slug)));
   ok('viewport covers the notch', /viewport-fit=cover/.test(document.querySelector('meta[name=viewport]')?.getAttribute('content') || ''));
   ok('safe area variables in use', cs.getPropertyValue('--sat') !== '' && !!document.querySelector('.statusfill'));
+  /* one colour at the top: inside the shell the glass topbar paints the inset and the
+     strip is gone; on the door the strip and the page share the same dark ink */
+  const strip = document.querySelector('.statusfill') as HTMLElement;
+  const inShell = document.body.classList.contains('in-shell');
+  ok('status strip is one colour with the screen under it',
+     inShell ? getComputedStyle(strip).display === 'none'
+             : (cs.getPropertyValue('--top').trim() === (document.querySelector('.login-card') ? cs.getPropertyValue('--sidebar').trim() : '#f5f5f7')),
+     inShell ? 'shell: topbar owns the inset' : 'door or launcher: --top ' + cs.getPropertyValue('--top').trim());
+  ok('browser chrome colour matches the screen too',
+     (document.querySelector('meta[name=theme-color]')?.getAttribute('content') || '') === (inShell ? '#f5f5f7' : cs.getPropertyValue('--top').trim()));
   ok('no field under 16px on a coarse pointer', (() => { const s = document.createElement('style'); s.textContent = ''; const q = matchMedia('(pointer:coarse)').matches; if (!q) return true; return [...document.querySelectorAll('input,select,textarea')].every(e => parseFloat(getComputedStyle(e).fontSize) >= 16); })());
   ok('no emoji glyph in page text', !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(document.body.innerText));
   ok('no em or en dash in copy', !/[—–]/.test(document.body.innerText));

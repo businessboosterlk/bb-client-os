@@ -6,6 +6,12 @@ import { SessionService } from '../core/session.service';
 import { DataService } from '../core/data.service';
 import { IconComponent } from '../ui/icon.component';
 
+/* one colour at the top: the status strip and the browser chrome take the colour of
+   the screen they sit on. Cream inside the app, the dark ink only on the door. */
+export function setTop(color: string){
+  document.documentElement.style.setProperty('--top', color);
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', color);
+}
 interface NavItem { path: string; label: string; icon: string; badge?: () => number; }
 interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; }
 
@@ -145,6 +151,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   wa = computed(() => `https://wa.me/${this.cast.cast()?.wa}?text=${encodeURIComponent(`Hello, this is ${this.session.user()} from ${this.cast.cast()?.name} [OS].`)}`);
 
   ngOnInit(){
+    document.body.classList.add('in-shell'); setTop('#f5f5f7');
     this.system.set(this.route.snapshot.data['system']);
     /* the other system starts collapsed, so the rail reads as one group with a door to the other */
     const other = this.system() === 'library' ? 'sales' : 'library';
@@ -153,7 +160,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.sub = this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe(() => this.readTitle());
     this.tick(); this.timer = setInterval(() => this.tick(), 15000);
   }
-  ngOnDestroy(){ clearInterval(this.timer); this.sub?.unsubscribe(); }
+  ngOnDestroy(){ document.body.classList.remove('in-shell'); clearInterval(this.timer); this.sub?.unsubscribe(); }
   private readTitle(){ let r = this.route; while (r.firstChild) r = r.firstChild; this.title.set(r.snapshot.data['title'] || ''); }
   private tick(){ const d = new Date(); const D = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     this.clock.set(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} · ${D[d.getDay()]} ${d.getDate()} ${M[d.getMonth()]}`); }

@@ -1,8 +1,9 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CastService } from '../core/cast.service';
 import { SessionService } from '../core/session.service';
+import { setTop } from '../shell/shell.component';
 
 /* The door. Pick your name, enter the PIN, land on the launcher. On a phone the
    PIN field is 16px so the page never zooms, and the last field submits. */
@@ -51,10 +52,11 @@ import { SessionService } from '../core/session.service';
     .btn{width:100%;min-height:46px}
     .foot{margin-top:22px;text-align:center}.foot img{height:22px;opacity:.7}`]
 })
-export class LoginComponent {
+export class LoginComponent implements OnDestroy {
   cast = inject(CastService); private session = inject(SessionService); private router = inject(Router);
   name = signal(''); pin = ''; bad = signal(false);
-  constructor(){ if (this.session.user()) this.router.navigate(['/start']); const u = this.cast.cast()?.users?.[0]; if (u) this.name.set(u.name); }
+  constructor(){ setTop(getComputedStyle(document.documentElement).getPropertyValue('--sidebar').trim() || '#101012'); if (this.session.user()) this.router.navigate(['/start']); const u = this.cast.cast()?.users?.[0]; if (u) this.name.set(u.name); }
+  ngOnDestroy(){ setTop('#f5f5f7'); }
   focusPin(){ setTimeout(() => (document.getElementById('pin') as HTMLInputElement | null)?.focus(), 0); }
   go(e: Event){ e.preventDefault(); if (this.session.login(this.name(), this.pin)) { this.bad.set(false); this.router.navigate(['/start']); } else this.bad.set(true); }
 }
