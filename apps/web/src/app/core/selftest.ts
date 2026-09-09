@@ -19,7 +19,9 @@ export async function runSelftest(cast: CastService, data: DataService){
   ok('no emoji glyph in page text', !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(document.body.innerText));
   ok('no em or en dash in copy', !/[—–]/.test(document.body.innerText));
   ok('no comma before and, or, but or nor', !/,\s+(and|or|but|nor)\b/i.test(document.body.innerText));
-  ok('nothing clipped off the right edge', [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > innerWidth + 1 && getComputedStyle(e).position !== 'fixed' && getComputedStyle(e).visibility !== 'hidden' && !inScroller(e)).length === 0);
+  const clipped = [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > innerWidth + 1 && getComputedStyle(e).position !== 'fixed' && getComputedStyle(e).visibility !== 'hidden' && !inScroller(e));
+  /* a zero-wide viewport is a hidden pane, not a layout: say so instead of blaming the page */
+  ok('nothing clipped off the right edge', clipped.length === 0, innerWidth === 0 ? 'viewport is 0px wide: pane hidden, nothing measured' : clipped.length + ' offenders at ' + innerWidth + 'px');
   const desk = innerWidth >= 1020;
   const rail = document.querySelector('.rail') as HTMLElement | null;
   const tabs = document.querySelector('.tabs') as HTMLElement | null;
