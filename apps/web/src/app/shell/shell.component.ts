@@ -1,0 +1,163 @@
+import { Component, inject, signal, computed, HostListener, OnInit, OnDestroy } from '@angular/core';
+import { RouterOutlet, RouterLink, RouterLinkActive, ActivatedRoute, Router, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs';
+import { CastService } from '../core/cast.service';
+import { SessionService } from '../core/session.service';
+import { DataService } from '../core/data.service';
+import { IconComponent } from '../ui/icon.component';
+
+interface NavItem { path: string; label: string; icon: string; badge?: () => number; }
+interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; }
+
+/* The shell both systems share. Desktop: a 232px rail with TWO collapsible groups,
+   Library and Sales, a hairline divider between them, the active screen on a 3px
+   accent rail. Phone: a 56px glass topbar and a bottom tab bar carrying the current
+   system's screens; the rail slides in from the menu button to switch systems. */
+@Component({
+  selector: 'bb-shell',
+  standalone: true,
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent],
+  template: `
+    <div class="scrim" [class.on]="railOpen()" (click)="railOpen.set(false)"></div>
+    <aside class="rail" [class.open]="railOpen()" aria-label="Navigation">
+      <div class="r-brand">
+        <img src="assets/bb-logo.png" alt="Business Booster">
+        <span class="r-eyebrow">Your OS</span>
+      </div>
+      <div class="r-clock">{{ clock() }}</div>
+      <a class="r-client" routerLink="/start" (click)="railOpen.set(false)">
+        @if (cast.cast()?.brand?.logo) { <img [src]="cast.cast()!.brand.logo" alt=""> }
+        <span><strong>{{ cast.cast()?.name }}</strong><em>Change system</em></span>
+      </a>
+      @for (g of groups; track g.key; let last = $last) {
+        <div class="grp" [class.off]="collapsed().has(g.key)">
+          <button class="grp-h" type="button" (click)="toggle(g.key)" [attr.aria-expanded]="!collapsed().has(g.key)">
+            <span>{{ g.label }}</span><bb-icon name="chevd" class="chev"/>
+          </button>
+          <nav>
+            @for (it of g.items; track it.path) {
+              <a [routerLink]="'/' + g.key + '/' + it.path" routerLinkActive="on" (click)="railOpen.set(false)">
+                <bb-icon [name]="it.icon"/>{{ it.label }}
+                @if (it.badge && it.badge() > 0) { <span class="nb">{{ it.badge() }}</span> }
+              </a>
+            }
+          </nav>
+        </div>
+        @if (!last) { <hr class="div"> }
+      }
+      <div class="r-foot">
+        <span class="avatar">{{ session.initial() }}</span>
+        <span class="who"><strong>{{ session.user() }}</strong><em>{{ role() }}</em></span>
+        <button class="x" type="button" (click)="out()" aria-label="Sign out"><bb-icon name="out"/></button>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <button class="x hamb" type="button" (click)="railOpen.set(true)" aria-label="Menu"><bb-icon name="menu"/></button>
+        <div class="tt"><strong>{{ title() }}</strong><span>{{ system() === 'library' ? 'Your library' : 'Your sales' }} · {{ cast.cast()?.name }}</span></div>
+        <div class="tr">
+          <a class="btn wa sm" [href]="wa()" target="_blank" rel="noreferrer"><bb-icon name="wa"/><span class="lbl">Message BB</span></a>
+        </div>
+      </header>
+      <main class="page"><router-outlet/></main>
+      <nav class="tabs" aria-label="Screens">
+        @for (it of tabs(); track it.path) {
+          <a [routerLink]="'/' + system() + '/' + it.path" routerLinkActive="on">
+            <bb-icon [name]="it.icon"/><span>{{ it.label }}</span>
+            @if (it.badge && it.badge() > 0) { <i class="dot"></i> }
+          </a>
+        }
+      </nav>
+    </div>`,
+  styles: [`
+    :host{display:block}
+    .rail{position:fixed;top:0;left:0;bottom:0;width:var(--side-w);background:var(--sidebar);color:var(--sidebar-txt);z-index:85;
+      display:flex;flex-direction:column;padding:calc(18px + var(--sat)) 12px calc(14px + var(--sab));overflow-y:auto;overscroll-behavior:contain;border-right:1px solid var(--sidebar-line)}
+    .r-brand{display:flex;flex-direction:column;gap:6px;padding:0 8px 14px}.r-brand img{height:22px;width:auto;align-self:flex-start;filter:brightness(0) invert(1);opacity:.9}
+    .r-eyebrow{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--sidebar-faint)}
+    .r-clock{font-size:12px;color:var(--sidebar-faint);padding:0 8px 14px;font-variant-numeric:tabular-nums}
+    .r-client{display:flex;align-items:center;gap:10px;padding:10px 8px;border-radius:10px;margin-bottom:8px;transition:background var(--dur) var(--ease)}
+    .r-client:hover{background:rgba(255,255,255,.06)}
+    .r-client img{width:30px;height:30px;border-radius:8px;background:#fff;padding:3px;object-fit:contain}
+    .r-client strong{display:block;color:#fff;font-size:14px;font-weight:600}.r-client em{display:block;font-style:normal;font-size:11px;color:var(--sidebar-faint)}
+    .grp-h{display:flex;align-items:center;justify-content:space-between;width:100%;padding:8px 8px 6px;border:0;background:none;color:var(--sidebar-faint);font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border-radius:8px}
+    .grp-h:hover{color:var(--sidebar-txt)}.grp-h .chev{transition:transform var(--dur) var(--ease);--ico:14px}
+    .grp.off .grp-h .chev{transform:rotate(-90deg)}.grp.off nav{display:none}
+    nav{display:flex;flex-direction:column;gap:2px}
+    nav a{position:relative;display:flex;align-items:center;gap:11px;min-height:40px;padding:0 10px;border-radius:9px;font-size:13.5px;font-weight:500;color:var(--sidebar-txt);transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+    nav a:hover{background:rgba(255,255,255,.06);color:#fff}
+    nav a.on{background:rgba(255,255,255,.08);color:#fff;font-weight:600}
+    nav a.on::before{content:"";position:absolute;left:-12px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--brand)}
+    nav a bb-icon{--ico:17px;opacity:.85}nav a.on bb-icon{opacity:1;color:var(--brand)}
+    .nb{margin-left:auto;font-size:11px;font-weight:700;background:var(--brand);color:var(--on-accent);padding:1px 7px;border-radius:999px}
+    .div{border:0;border-top:1px solid var(--sidebar-line);margin:10px 4px}
+    .r-foot{margin-top:auto;display:flex;align-items:center;gap:10px;padding:14px 4px 0;border-top:1px solid var(--sidebar-line)}
+    .r-foot .avatar{background:var(--brand);color:var(--on-accent)}
+    .r-foot .who{flex:1;min-width:0}.r-foot strong{display:block;color:#fff;font-size:13px}.r-foot em{display:block;font-style:normal;font-size:11px;color:var(--sidebar-faint)}
+    .r-foot .x{color:var(--sidebar-faint)}.r-foot .x:hover{background:rgba(255,255,255,.08);color:#fff}
+    .main{margin-left:var(--side-w);min-height:100dvh;display:flex;flex-direction:column}
+    .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;height:calc(var(--top-h) + var(--sat));padding:var(--sat) 24px 0;
+      background:rgba(255,255,255,.86);backdrop-filter:saturate(160%) blur(14px);-webkit-backdrop-filter:saturate(160%) blur(14px);border-bottom:1px solid var(--line)}
+    .hamb{display:none}
+    .tt{flex:1;min-width:0}.tt strong{display:block;font-size:15px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .tt span{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .tr{display:flex;gap:8px;align-items:center}
+    .page{flex:1}
+    .tabs{display:none}
+    @media (max-width:1019px){
+      .rail{transform:translateX(-24px);opacity:0;visibility:hidden;transition:transform 240ms var(--ease),opacity 240ms var(--ease),visibility 0s 240ms;box-shadow:var(--sh-lg)}
+      .rail.open{transform:none;opacity:1;visibility:visible;transition:transform 240ms var(--ease),opacity 240ms var(--ease)}
+      .main{margin-left:0}
+      .hamb{display:grid}
+      .topbar{padding:var(--sat) 12px 0 8px}
+      .page{padding:16px 16px calc(84px + var(--sab))}
+      .btn.wa .lbl{display:none}.btn.wa.sm{width:38px;padding:0;border-radius:10px}
+      .tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);
+        padding:6px 6px calc(6px + var(--sab));background:rgba(255,255,255,.92);backdrop-filter:saturate(160%) blur(14px);-webkit-backdrop-filter:saturate(160%) blur(14px);border-top:1px solid var(--line)}
+      .tabs a{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:48px;padding:6px 2px;border-radius:10px;color:var(--muted);font-size:10.5px;font-weight:600;white-space:nowrap}
+      .tabs a bb-icon{--ico:20px}.tabs a.on{color:var(--brand-dark)}
+      .tabs a .dot{position:absolute;top:6px;right:calc(50% - 14px);width:7px;height:7px;border-radius:50%;background:var(--brand)}
+    }`]
+})
+export class ShellComponent implements OnInit, OnDestroy {
+  cast = inject(CastService); session = inject(SessionService); data = inject(DataService);
+  private route = inject(ActivatedRoute); private router = inject(Router);
+  railOpen = signal(false);
+  system = signal<'library' | 'sales'>('library');
+  title = signal('');
+  clock = signal('');
+  collapsed = signal(new Set<string>());
+  private timer: any; private sub: any;
+  groups: NavGroup[] = [
+    { key: 'library', label: 'Library', items: [
+      { path: 'month', label: 'This month', icon: 'home' }, { path: 'videos', label: 'Videos', icon: 'video' },
+      { path: 'posts', label: 'Posts', icon: 'post' }, { path: 'docs', label: 'Documents', icon: 'doc' },
+      { path: 'business', label: 'Your business', icon: 'brain' } ] },
+    { key: 'sales', label: 'Sales', items: [
+      { path: 'dashboard', label: 'Dashboard', icon: 'dash' },
+      { path: 'enquiries', label: 'Enquiries', icon: 'inbox', badge: () => this.data.waiting().length },
+      { path: 'pipeline', label: 'Pipeline', icon: 'pipe', badge: () => this.data.dueTasks().length + this.data.stale().length },
+      { path: 'customers', label: 'Customers', icon: 'users' } ] }
+  ];
+  tabs = computed(() => this.groups.find(g => g.key === this.system())!.items);
+  role = computed(() => this.cast.cast()?.users.find(u => u.name === this.session.user())?.role || '');
+  wa = computed(() => `https://wa.me/${this.cast.cast()?.wa}?text=${encodeURIComponent(`Hello, this is ${this.session.user()} from ${this.cast.cast()?.name} [OS].`)}`);
+
+  ngOnInit(){
+    this.system.set(this.route.snapshot.data['system']);
+    /* the other system starts collapsed, so the rail reads as one group with a door to the other */
+    const other = this.system() === 'library' ? 'sales' : 'library';
+    this.collapsed.set(new Set([other]));
+    this.readTitle();
+    this.sub = this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe(() => this.readTitle());
+    this.tick(); this.timer = setInterval(() => this.tick(), 15000);
+  }
+  ngOnDestroy(){ clearInterval(this.timer); this.sub?.unsubscribe(); }
+  private readTitle(){ let r = this.route; while (r.firstChild) r = r.firstChild; this.title.set(r.snapshot.data['title'] || ''); }
+  private tick(){ const d = new Date(); const D = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    this.clock.set(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} · ${D[d.getDay()]} ${d.getDate()} ${M[d.getMonth()]}`); }
+  toggle(k: string){ const s = new Set(this.collapsed()); s.has(k) ? s.delete(k) : s.add(k); this.collapsed.set(s); }
+  out(){ this.session.logout(); this.router.navigate(['/login']); }
+  @HostListener('document:keydown.escape') esc(){ this.railOpen.set(false); }
+}

@@ -1,0 +1,65 @@
+{
+  "slug": "demo",
+  "name": "Cinnamon & Co",
+  "short": "Cinnamon",
+  "wa": "94766584993",
+  "updated": "30 August 2026",
+  "brand": { "hex": "#8a5a2b", "logo": "assets/clients/demo.svg" },
+  "words": {
+    "enquiry": "Enquiry", "enquiries": "Enquiries",
+    "deal": "Deal", "deals": "Deals",
+    "customer": "Customer", "customers": "Customers",
+    "currency": "LKR"
+  },
+  "stages": [
+    { "key": "talking", "label": "Talking", "prob": 20 },
+    { "key": "quoted",  "label": "Quoted",  "prob": 50 },
+    { "key": "closing", "label": "Closing", "prob": 80 }
+  ],
+  "sources": ["WhatsApp", "Instagram", "Facebook", "Walk in", "Phone", "Referral", "Website"],
+  "target": { "month": 1800000 },
+  "users": [
+    { "name": "Amara", "role": "Owner" },
+    { "name": "Dilan", "role": "Sales" },
+    { "name": "Sanduni", "role": "Sales" }
+  ],
+  "pin": "1111",
+  "data": { "mode": "local" },
+  "library": {
+    "hello": "Hello, Cinnamon team.",
+    "sub": "Everything we have produced for you, in one place.",
+    "months": [
+      { "id": "2026-08", "label": "August",
+        "videos": [
+          { "title": "Signature blend, launch film", "note": "Final cut · 42 seconds", "href": "https://drive.google.com/drive/folders/demo-aug-v1", "added": "2026-08-28" },
+          { "title": "Behind the roastery", "note": "Reel · 28 seconds", "href": "https://drive.google.com/drive/folders/demo-aug-v2", "added": "2026-08-21" }
+        ],
+        "posts": [
+          { "title": "The morning ritual carousel", "date": "28 Aug", "platform": "Instagram", "href": "https://www.instagram.com/p/demo1", "added": "2026-08-28" },
+          { "title": "Meet the roaster", "date": "21 Aug", "platform": "Instagram", "href": "https://www.instagram.com/p/demo2", "added": "2026-08-21" },
+          { "title": "Weekend tasting flight", "date": "14 Aug", "platform": "Facebook", "href": "https://www.facebook.com/demo3", "added": "2026-08-14" }
+        ] },
+      { "id": "2026-07", "label": "July",
+        "videos": [ { "title": "Cold brew, three ways", "note": "Reel · 31 seconds", "href": "https://drive.google.com/drive/folders/demo-jul-v1", "added": "2026-07-24" } ],
+        "posts": [
+          { "title": "Origin story, part one", "date": "24 Jul", "platform": "Instagram", "href": "https://www.instagram.com/p/demo4", "added": "2026-07-24" },
+          { "title": "Iced season opener", "date": "10 Jul", "platform": "Instagram", "href": "https://www.instagram.com/p/demo5", "added": "2026-07-10" }
+        ] },
+      { "id": "2025-12", "label": "December",
+        "videos": [ { "title": "Gifting season film", "note": "Final cut · 38 seconds", "href": "https://drive.google.com/drive/folders/demo-dec-v1", "added": "2025-12-12" } ],
+        "posts": [ { "title": "The hamper, unwrapped", "date": "18 Dec", "platform": "Instagram", "href": "https://www.instagram.com/p/demo6", "added": "2025-12-18" } ] }
+    ],
+    "docs": [
+      { "title": "August performance report", "kind": "Monthly report", "date": "Aug 2026", "href": "https://example.com/demo-report", "added": "2026-08-30" },
+      { "title": "Quarter plan, October to December", "kind": "Strategy", "date": "Aug 2026", "href": "https://example.com/demo-quarter", "added": "2026-08-30" },
+      { "title": "Your customer profile", "kind": "ICP", "date": "Jul 2026", "href": "https://example.com/demo-icp", "added": "2026-07-20" }
+    ],
+    "facts": [
+      { "k": "What you sell", "v": "Single origin Ceylon cinnamon and coffee, retail and wholesale", "g": "Business" },
+      { "k": "Who buys", "v": "Colombo households and boutique hotels, gifting spikes in December", "g": "Audience" },
+      { "k": "Your voice", "v": "Warm, craft first, never discount led", "g": "Brand voice" },
+      { "k": "House rule", "v": "Provenance claims always name the estate", "g": "Guardrails" }
+    ],
+    "factsReviewed": "30 August 2026"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "bb-client-os",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BB Client OS: one app per client with two doors, the Library and the Sales system. Node and Next.js backend, Angular front end, cast per client from casts/<slug>.json.",
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/api & npm run start --workspace apps/web",
+    "dev:api": "npm run dev --workspace apps/api",
+    "dev:web": "npm run start --workspace apps/web",
+    "build": "npm run build --workspace apps/web",
+    "build:api": "npm run build --workspace apps/api",
+    "casts": "node scripts/sync-casts.mjs",
+    "check": "python3 ~/bb-systems/stack-standard/check_stack.py . && node scripts/check-casts.mjs"
+  },
+  "dependencies": {
+    "next": "^15.5.0",
+    "@angular/core": "^19.2.0"
+  },
+  "engines": { "node": ">=22" }
+}

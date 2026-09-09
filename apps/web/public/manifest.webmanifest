@@ -1,0 +1,9 @@
+{
+  "name": "Your OS by Business Booster",
+  "short_name": "Your OS",
+  "start_url": "./?c=demo&src=app",
+  "display": "standalone",
+  "background_color": "#f5f5f7",
+  "theme_color": "#101012",
+  "icons": [{ "src": "assets/bb-logo.png", "sizes": "512x512", "type": "image/png" }]
+}

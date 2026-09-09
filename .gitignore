@@ -1,0 +1,7 @@
+node_modules/
+apps/api/.next/
+apps/web/dist/
+apps/web/.angular/
+.env
+.env.local
+.DS_Store
