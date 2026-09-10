@@ -44,7 +44,7 @@ export class CastService {
     document.title = `${cast.name} · The Hub`;
     const m = document.getElementById('manifest') as HTMLLinkElement | null;
     if (m) {
-      const man = { name: `${cast.name} · The Hub`, short_name: cast.short || cast.name, start_url: `./?src=app`, display: 'standalone', background_color: '#f5f5f7', theme_color: '#f5f5f7',
+      const man = { name: `${cast.name} · The Hub`, short_name: cast.short || cast.name, start_url: `./?src=app`, display: 'standalone', background_color: '#08080a', theme_color: '#f5f5f7',
         icons: [{ src: new URL('icon-192.png', location.href).href, sizes: '192x192', type: 'image/png' }, { src: new URL('icon-512.png', location.href).href, sizes: '512x512', type: 'image/png' }, { src: new URL('icon-maskable-512.png', location.href).href, sizes: '512x512', type: 'image/png', purpose: 'maskable' }] };
       m.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(man));
     }

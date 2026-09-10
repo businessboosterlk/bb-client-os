@@ -54,6 +54,9 @@ body.in-shell .statusfill{display:none}
 .tbl-wrap,.board{scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
 @media (pointer:coarse){.tbl-wrap,.board{scrollbar-width:none}.tbl-wrap::-webkit-scrollbar,.board::-webkit-scrollbar{display:none}}
 ::selection{background:var(--brand-soft);color:var(--ink)}
+/* the BB mark is white on transparent, so it must invert on a light ground or it vanishes.
+   Marks on the sidebar and the door sit on their own dark and never carry this class. */
+html[data-theme="light"] .bb-mark{filter:invert(1)}
 
 /* type ramp */
 .t-display{font-size:30px;font-weight:700;letter-spacing:-.025em;line-height:1.15}

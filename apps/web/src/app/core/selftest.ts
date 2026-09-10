@@ -15,6 +15,9 @@ export async function runSelftest(cast: CastService, data: DataService){
   ok('palette derived from the one brand hex', cs.getPropertyValue('--brand').trim().toLowerCase() === c.brand.hex.toLowerCase() && cs.getPropertyValue('--brand-soft').trim() !== '');
   ok('manifest named for this client', ((document.getElementById('manifest') as HTMLLinkElement)?.href || '').includes(encodeURIComponent(c.name.split(' ')[0])));
   }
+  /* the install icon is the app's face on a home screen: it must load, be square and
+     not be some other system's icon smuggled in (this one arrived saying VIDEO) */
+  ok('every declared app icon loads and is square', await Promise.all(['icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'icon-maskable-512.png'].map(src => new Promise<boolean>(res => { const i = new Image(); i.onload = () => res(i.naturalWidth === i.naturalHeight && i.naturalWidth >= 180); i.onerror = () => res(false); i.src = src; }))).then(r => r.every(Boolean)));
   ok('viewport covers the notch', /viewport-fit=cover/.test(document.querySelector('meta[name=viewport]')?.getAttribute('content') || ''));
   ok('safe area variables in use', cs.getPropertyValue('--sat') !== '' && !!document.querySelector('.statusfill'));
   /* one colour at the top: inside the shell the glass topbar paints the inset and the

@@ -42,7 +42,7 @@ import { ThemeService } from '../core/theme.service';
           <bb-icon name="chev" class="go"/>
         </a>
       </div>
-      <p class="foot"><img src="assets/bb-logo.png" alt="Business Booster"> The Hub · {{ cast.cast()?.name }} · {{ session.user() }} seat</p>
+      <p class="foot"><img class="bb-mark" src="assets/bb-logo.png" alt="Business Booster"> The Hub · {{ cast.cast()?.name }} · {{ session.user() }} seat</p>
     </div>`,
   styles: [`
     .wrap{min-height:100dvh;max-width:720px;margin:0 auto;padding:calc(28px + var(--sat)) 20px calc(28px + var(--sab));display:flex;flex-direction:column}
