@@ -42,25 +42,25 @@ export interface MenuTab { path: string; label: string; icon: string; badge?: ()
     :host{display:block}
     .bm{position:fixed;left:50%;bottom:calc(14px + var(--sab));transform:translateX(-50%);z-index:40;display:flex;flex-direction:column;align-items:center}
     .bm-bar{display:flex;align-items:center;gap:4px;padding:4px;border-radius:18px;border:1px solid var(--line);
-      background:rgba(255,255,255,.95);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
-      box-shadow:0 8px 28px rgba(20,20,23,.12),0 1px 2px rgba(20,20,23,.06)}
+      background:var(--pill);border-color:var(--pill-line);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+      box-shadow:var(--sh-lg)}
     .bm-btn{position:relative;width:46px;height:46px;border:0;border-radius:16px;background:none;color:var(--muted);display:grid;place-items:center;
       transition:background 150ms var(--ease),color 150ms var(--ease),transform 150ms var(--ease)}
     .bm-btn bb-icon{--ico:22px}
     .bm-btn.on{color:var(--brand-dark)}
     .bm-btn.sel{background:var(--surface-2);color:var(--ink)}
     .bm-btn:active{transform:scale(.92)}
-    .bm-btn .dot{position:absolute;top:9px;right:9px;width:7px;height:7px;border-radius:50%;background:var(--brand);border:2px solid #fff}
+    .bm-btn .dot{position:absolute;top:9px;right:9px;width:7px;height:7px;border-radius:50%;background:var(--brand);border:2px solid var(--dot-ring)}
     /* the wrapper knows the final size (measured), carries the shadow, and only ever moves
        by transform and opacity. Nothing here animates layout, nothing clips the shadow. */
     .bm-sub{position:absolute;bottom:70px;left:50%;translate:-50% 0;width:0;height:0;border-radius:18px;
       opacity:0;transform:scale(.95,.9);transform-origin:bottom center;pointer-events:none;will-change:transform,opacity;
-      box-shadow:0 12px 36px rgba(20,20,23,.14),0 2px 6px rgba(20,20,23,.06);
+      box-shadow:var(--sh-lg);
       transition:opacity .3s cubic-bezier(.45,0,.25,1),transform .3s cubic-bezier(.45,0,.25,1),box-shadow .3s cubic-bezier(.45,0,.25,1)}
     .bm-sub.on{opacity:1;transform:none;pointer-events:auto}
     /* the card reveals itself from the bottom edge up, a clip on the compositor, same 300ms curve */
     .bm-card{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:max-content;border-radius:18px;border:1px solid var(--line);
-      background:rgba(255,255,255,.98);clip-path:inset(100% 0 0 0 round 18px);
+      background:var(--card-glass);border-color:var(--pill-line);clip-path:inset(100% 0 0 0 round 18px);
       transition:clip-path .3s cubic-bezier(.45,0,.25,1)}
     .bm-sub.on .bm-card{clip-path:inset(0 0 0 0 round 18px)}
     .bm-view{min-width:214px;padding:6px}

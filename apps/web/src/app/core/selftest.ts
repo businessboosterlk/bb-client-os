@@ -23,10 +23,10 @@ export async function runSelftest(cast: CastService, data: DataService){
   const inShell = document.body.classList.contains('in-shell');
   ok('status strip is one colour with the screen under it',
      inShell ? getComputedStyle(strip).display === 'none'
-             : (cs.getPropertyValue('--top').trim() === (document.querySelector('.login-card') ? cs.getPropertyValue('--sidebar').trim() : '#f5f5f7')),
+             : (cs.getPropertyValue('--top').trim() === (document.querySelector('.door .card') ? '#0b0b0e' : cs.getPropertyValue('--bg').trim())),
      inShell ? 'shell: topbar owns the inset' : 'door or launcher: --top ' + cs.getPropertyValue('--top').trim());
   ok('browser chrome colour matches the screen too',
-     (document.querySelector('meta[name=theme-color]')?.getAttribute('content') || '') === (inShell ? '#f5f5f7' : cs.getPropertyValue('--top').trim()));
+     (document.querySelector('meta[name=theme-color]')?.getAttribute('content') || '') === cs.getPropertyValue('--top').trim());
   ok('no field under 16px on a coarse pointer', (() => { const s = document.createElement('style'); s.textContent = ''; const q = matchMedia('(pointer:coarse)').matches; if (!q) return true; return [...document.querySelectorAll('input,select,textarea')].every(e => parseFloat(getComputedStyle(e).fontSize) >= 16); })());
   ok('no emoji glyph in page text', !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(document.body.innerText));
   ok('no em or en dash in copy', !/[—–]/.test(document.body.innerText));
@@ -34,6 +34,8 @@ export async function runSelftest(cast: CastService, data: DataService){
   const clipped = [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > innerWidth + 1 && getComputedStyle(e).position !== 'fixed' && getComputedStyle(e).visibility !== 'hidden' && !inScroller(e));
   /* a zero-wide viewport is a hidden pane, not a layout: say so instead of blaming the page */
   ok('nothing clipped off the right edge', clipped.length === 0, innerWidth === 0 ? 'viewport is 0px wide: pane hidden, nothing measured' : clipped.length + ' offenders at ' + innerWidth + 'px');
+  ok('night mode exists: one attribute flips the tokens', (() => { const html = document.documentElement; const was = html.getAttribute('data-theme'); html.setAttribute('data-theme', 'dark'); const d = getComputedStyle(html).getPropertyValue('--bg').trim(); html.setAttribute('data-theme', 'light'); const l = getComputedStyle(html).getPropertyValue('--bg').trim(); if (was) html.setAttribute('data-theme', was); else html.removeAttribute('data-theme'); return d !== l && d.length > 0; })());
+  ok('a theme toggle is one tap away', !!document.querySelector('.theme, [aria-label="Night mode"], [aria-label="Day mode"]') || !!document.querySelector('.door .card'));
   const desk = innerWidth >= 1020;
   const rail = document.querySelector('.rail') as HTMLElement | null;
   const tabs = document.querySelector('.bm-bar') as HTMLElement | null;
@@ -54,13 +56,14 @@ export async function runSelftest(cast: CastService, data: DataService){
     ok('tap targets in the rail and tab bar are 40px or taller', [...document.querySelectorAll('.rail nav a, .bm-btn')].filter(a => a.getBoundingClientRect().height > 0).every(a => a.getBoundingClientRect().height >= 40));
   } else {
     /* no shell on this screen: it must be the door or the launcher, and each has its own anatomy */
-    const door = document.querySelector('.login-card'), doors = document.querySelectorAll('.door');
+    const door = document.querySelector('.door .card'), doors = document.querySelectorAll('.door');
     ok('a screen without the shell is the door or the launcher', !!door || doors.length === 2, door ? 'login' : doors.length + ' doors');
-    ok('the door asks for a business name and a code, nothing else', !door || (!!document.getElementById('biz') && !!document.getElementById('pin') && document.querySelectorAll('.login-card input').length === 2));
+    ok('the door asks for a business name and a code, nothing else', !door || (!!document.getElementById('biz') && !!document.getElementById('pin') && document.querySelectorAll('.door .card input').length === 2));
     ok('the PIN field cannot zoom the page on a phone', !door || parseFloat(getComputedStyle(document.getElementById('pin')!).fontSize) >= (matchMedia('(pointer:coarse)').matches ? 16 : 14));
     ok('the launcher offers exactly two doors, Library and Sales', !!door || (doors.length === 2 && /library/i.test(doors[0].textContent || '') && /sales/i.test(doors[1].textContent || '')));
-    ok('sign in and the doors are 44px or taller', [...document.querySelectorAll('.login-card .btn, .door')].every(a => a.getBoundingClientRect().height >= 44));
+    ok('sign in and the doors are 44px or taller', [...document.querySelectorAll('.door .enter, .door')].every(a => a.getBoundingClientRect().height >= 44));
     ok('the static alias book lists only PIN-protected local casts', await fetch('casts/index.json', { cache: 'no-cache' }).then(r => r.json()).then((idx: any[]) => idx.every(i => i.slug === 'demo')).catch(() => false));
+    ok('the mark sits on a dark card, never white on white', !door || (() => { const bg = getComputedStyle(document.querySelector('.card')!).backgroundColor.match(/\d+/g)!.map(Number); return (bg[0] * .2126 + bg[1] * .7152 + bg[2] * .0722) / 255 < .25 && !!document.querySelector('.card img.mark'); })());
     ok('the door never carries a seat code in the page', !door || !/[A-Z]{3}-[A-Z0-9]{4}-[A-Z0-9]{4}/.test(document.body.innerText));
   }
   ok('a local number becomes a real WhatsApp link', waLink('0771234567', 'X') === 'https://wa.me/94771234567?text=Hello%20X%2C%20' && waLink('', 'X') === '');

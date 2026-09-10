@@ -4,6 +4,7 @@ import { CastService } from '../core/cast.service';
 import { SessionService } from '../core/session.service';
 import { DataService } from '../core/data.service';
 import { IconComponent } from '../ui/icon.component';
+import { ThemeService } from '../core/theme.service';
 
 /* Two doors. The library is what BB made for them; the sales system is what they
    run their business on. Each door carries one live number so the choice is informed. */
@@ -18,7 +19,8 @@ import { IconComponent } from '../ui/icon.component';
           <p class="t-small">{{ greet() }}, {{ session.user() }}.</p>
           <h1 class="t-h1">Where to?</h1>
         </div>
-        <button class="btn ghost sm" type="button" (click)="out()"><bb-icon name="out"/>Sign out</button>
+        <div style="display:flex;gap:8px"><button class="btn ghost sm icon" type="button" (click)="theme.toggle()" [attr.aria-label]="theme.dark() ? 'Day mode' : 'Night mode'"><bb-icon [name]="theme.dark() ? 'sun' : 'moon'"/></button>
+        <button class="btn ghost sm" type="button" (click)="out()"><bb-icon name="out"/>Sign out</button></div>
       </header>
       <div class="doors">
         <a class="door" routerLink="/library">
@@ -56,7 +58,8 @@ import { IconComponent } from '../ui/icon.component';
     .foot{margin-top:auto;padding-top:28px;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}.foot img{height:16px;opacity:.7}`]
 })
 export class LauncherComponent {
-  cast = inject(CastService); session = inject(SessionService); data = inject(DataService); private router = inject(Router);
+  cast = inject(CastService); session = inject(SessionService); data = inject(DataService); theme = inject(ThemeService); private router = inject(Router);
+  constructor(){ this.theme.apply(); }
   greet(){ const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; }
   libLine = computed(() => {
     const L = this.cast.cast()?.library; if (!L) return '';

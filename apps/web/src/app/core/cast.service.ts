@@ -35,14 +35,17 @@ export class CastService {
     const b = hex(cast.brand.hex) || hex('#8a5a2b')!;
     const set = (k: string, v: string) => root.setProperty(k, v);
     set('--brand', toHex(b)); set('--brand-dark', toHex(mix(b, [0, 0, 0], .2))); set('--brand-deep', toHex(mix(b, [0, 0, 0], .45)));
-    set('--brand-soft', toHex(mix(b, [255, 255, 255], .86))); set('--brand-soft-2', toHex(mix(b, [255, 255, 255], .93)));
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    set('--brand-soft', toHex(mix(b, dark ? [22, 23, 28] : [255, 255, 255], dark ? .72 : .86))); set('--brand-soft-2', toHex(mix(b, dark ? [22, 23, 28] : [255, 255, 255], dark ? .84 : .93)));
+    set('--brand-lite', toHex(mix(b, [255, 255, 255], .35)));
     set('--brand-ink', toHex(mix(b, [12, 12, 14], .88))); set('--sidebar', toHex(mix(b, [12, 12, 14], .9)));
     set('--on-accent', lum(b) > .55 ? '#141417' : '#ffffff');
+    if (dark) set('--brand-dark', toHex(mix(b, [255, 255, 255], .18)));
     document.title = `${cast.name} · The Hub`;
     const m = document.getElementById('manifest') as HTMLLinkElement | null;
     if (m) {
       const man = { name: `${cast.name} · The Hub`, short_name: cast.short || cast.name, start_url: `./?src=app`, display: 'standalone', background_color: '#f5f5f7', theme_color: '#f5f5f7',
-        icons: [{ src: new URL('assets/bb-logo.png', location.href).href, sizes: '512x512', type: 'image/png' }] };
+        icons: [{ src: new URL('icon-192.png', location.href).href, sizes: '192x192', type: 'image/png' }, { src: new URL('icon-512.png', location.href).href, sizes: '512x512', type: 'image/png' }, { src: new URL('icon-maskable-512.png', location.href).href, sizes: '512x512', type: 'image/png', purpose: 'maskable' }] };
       m.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(man));
     }
   }

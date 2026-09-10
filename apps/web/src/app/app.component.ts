@@ -4,6 +4,7 @@ import { CastService } from './core/cast.service';
 import { DataService } from './core/data.service';
 import { SessionService } from './core/session.service';
 import { runSelftest } from './core/selftest';
+import { ThemeService } from './core/theme.service';
 
 @Component({
   selector: 'bb-root',
@@ -18,8 +19,9 @@ import { runSelftest } from './core/selftest';
     }`
 })
 export class AppComponent {
-  cast = inject(CastService); data = inject(DataService); session = inject(SessionService); private router = inject(Router);
+  cast = inject(CastService); data = inject(DataService); session = inject(SessionService); theme = inject(ThemeService); private router = inject(Router);
   constructor(){
+    this.theme.onChange = () => { const c = this.cast.cast(); if (c) this.cast.apply(c); };
     if ('serviceWorker' in navigator && location.protocol !== 'file:' && !location.hostname.startsWith('localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
     if (new URLSearchParams(location.search).has('selftest')) setTimeout(() => runSelftest(this.cast, this.data).then(r => (window as any).__bbos = r), 1500);
     /* a seat that the server no longer accepts goes back to the door, with a word why */

@@ -6,6 +6,7 @@ import { SessionService } from '../core/session.service';
 import { DataService } from '../core/data.service';
 import { IconComponent } from '../ui/icon.component';
 import { BottomMenuComponent, MenuTab, MenuAction } from './bottom-menu.component';
+import { ThemeService } from '../core/theme.service';
 
 /* one colour at the top: the status strip and the browser chrome take the colour of
    the screen they sit on. Cream inside the app, the dark ink only on the door. */
@@ -13,6 +14,7 @@ export function setTop(color: string){
   document.documentElement.style.setProperty('--top', color);
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', color);
 }
+export function pageColour(){ return getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#f5f5f7'; }
 interface NavItem { path: string; label: string; icon: string; badge?: () => number; }
 interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; }
 
@@ -55,6 +57,7 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
       <div class="r-foot">
         <span class="avatar">{{ session.initial() }}</span>
         <span class="who"><strong>{{ session.user() }}</strong><em>{{ role() }}</em></span>
+        <button class="x" type="button" (click)="theme.toggle()" [attr.aria-label]="theme.dark() ? 'Day mode' : 'Night mode'"><bb-icon [name]="theme.dark() ? 'sun' : 'moon'"/></button>
         <button class="x" type="button" (click)="out()" aria-label="Sign out"><bb-icon name="out"/></button>
       </div>
     </aside>
@@ -65,6 +68,7 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
         <div class="tt"><strong>{{ title() }}</strong><span>{{ system() === 'library' ? 'Your library' : 'Your sales' }} · {{ cast.cast()?.name }}</span>
           @if (data.pending() > 0) { <em class="off">{{ data.pending() }} waiting to sync</em> }</div>
         <div class="tr">
+          <button class="x theme" type="button" (click)="theme.toggle()" [attr.aria-label]="theme.dark() ? 'Day mode' : 'Night mode'" [attr.aria-pressed]="theme.dark()"><bb-icon [name]="theme.dark() ? 'sun' : 'moon'"/></button>
           <a class="btn wa sm" [href]="wa()" target="_blank" rel="noreferrer"><bb-icon name="wa"/><span class="lbl">Message BB</span></a>
         </div>
       </header>
@@ -102,12 +106,12 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
     .r-foot .x{color:var(--sidebar-faint)}.r-foot .x:hover{background:rgba(255,255,255,.08);color:#fff}
     .main{margin-left:var(--side-w);min-height:100dvh;display:flex;flex-direction:column}
     .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;height:calc(var(--top-h) + var(--sat));padding:var(--sat) 24px 0;
-      background:rgba(255,255,255,.86);backdrop-filter:saturate(160%) blur(14px);-webkit-backdrop-filter:saturate(160%) blur(14px);border-bottom:1px solid var(--line)}
+      background:var(--glass);backdrop-filter:saturate(160%) blur(14px);-webkit-backdrop-filter:saturate(160%) blur(14px);border-bottom:1px solid var(--line)}
     .hamb{display:none}
     .tt{flex:1;min-width:0}.tt strong{display:block;font-size:15px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .tt span{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .tt .off{display:inline-block;font-style:normal;font-size:10.5px;font-weight:600;color:var(--amber);background:var(--amber-soft);padding:1px 7px;border-radius:999px;margin-top:2px}
-    .tr{display:flex;gap:8px;align-items:center}
+    .tr{display:flex;gap:6px;align-items:center}.theme{color:var(--muted)}.theme:hover{color:var(--ink)}
     .page{flex:1}
     .page.enter{animation:pageIn 260ms var(--ease) both}
     @keyframes pageIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -125,7 +129,7 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
     }`]
 })
 export class ShellComponent implements OnInit, OnDestroy {
-  cast = inject(CastService); session = inject(SessionService); data = inject(DataService);
+  cast = inject(CastService); session = inject(SessionService); data = inject(DataService); theme = inject(ThemeService);
   private route = inject(ActivatedRoute); private router = inject(Router);
   railOpen = signal(false);
   system = signal<'library' | 'sales'>('library');
@@ -168,12 +172,13 @@ export class ShellComponent implements OnInit, OnDestroy {
   wa = computed(() => `https://wa.me/${this.cast.cast()?.wa}?text=${encodeURIComponent(`Hello, this is ${this.session.user()} from ${this.cast.cast()?.name} [OS].`)}`);
 
   ngOnInit(){
-    document.body.classList.add('in-shell'); setTop('#f5f5f7');
+    document.body.classList.add('in-shell'); setTop(pageColour());
     this.system.set(this.route.snapshot.data['system']);
     /* the other system starts collapsed, so the rail reads as one group with a door to the other */
     const other = this.system() === 'library' ? 'sales' : 'library';
     this.collapsed.set(new Set([other]));
     this.readTitle();
+    this.theme.apply();
     this.sub = this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe(() => {
       const was = this.activeUrl(); this.readTitle();
       /* a screen change rises in; a query-param change on the same screen does not */

@@ -78,8 +78,8 @@ import { IconComponent } from '../../ui/icon.component';
         </div></div>
     </div>`,
   styles: [`
-    .hero{display:grid;grid-template-columns:1fr 1fr;background:var(--sidebar);color:#fff;border:0;margin-bottom:12px}
-    .h-cell{padding:22px 24px;display:flex;flex-direction:column;gap:6px}.h-cell+.h-cell{border-left:1px solid rgba(255,255,255,.12)}
+    .hero{display:grid;grid-template-columns:1fr 1fr;background:var(--hero);color:#fff;border:0;margin-bottom:12px}
+    .h-cell{padding:22px 24px;display:flex;flex-direction:column;gap:6px}.h-cell+.h-cell{border-left:1px solid var(--hero-line)}
     .hero .k-label{font-size:11px;font-weight:600;color:rgba(255,255,255,.7)}
     .h-val{font-size:30px;font-weight:700;letter-spacing:-.025em;font-variant-numeric:tabular-nums;line-height:1.1}
     .h-sub{font-size:12px;color:rgba(255,255,255,.7)}
@@ -88,7 +88,7 @@ import { IconComponent } from '../../ui/icon.component';
     .grid2{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
     .chart{padding:16px 12px 8px}.chart svg{width:100%;height:auto;display:block}
     .list .ic.red{background:var(--red-soft);color:var(--red)}.list .ic.amber{background:var(--amber-soft);color:var(--amber)}
-    @media (max-width:900px){.hero{grid-template-columns:1fr}.h-cell+.h-cell{border-left:0;border-top:1px solid rgba(255,255,255,.12)}.grid2{grid-template-columns:1fr}.h-val{font-size:26px}}`]
+    @media (max-width:900px){.hero{grid-template-columns:1fr}.h-cell+.h-cell{border-left:0;border-top:1px solid var(--hero-line)}.grid2{grid-template-columns:1fr}.h-val{font-size:26px}}`]
 })
 export class DashboardComponent {
   cast = inject(CastService); data = inject(DataService); session = inject(SessionService);
