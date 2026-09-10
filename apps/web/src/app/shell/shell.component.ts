@@ -41,14 +41,14 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
           <button class="grp-h" type="button" (click)="toggle(g.key)" [attr.aria-expanded]="!collapsed().has(g.key)">
             <span>{{ g.label }}</span><bb-icon name="chevd" class="chev"/>
           </button>
-          <nav>
+          <nav><div>
             @for (it of g.items; track it.path) {
               <a [routerLink]="'/' + g.key + '/' + it.path" routerLinkActive="on" (click)="railOpen.set(false)">
                 <bb-icon [name]="it.icon"/>{{ it.label }}
                 @if (it.badge && it.badge() > 0) { <span class="nb">{{ it.badge() }}</span> }
               </a>
             }
-          </nav>
+          </div></nav>
         </div>
         @if (!last) { <hr class="div"> }
       }
@@ -67,7 +67,7 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
           <a class="btn wa sm" [href]="wa()" target="_blank" rel="noreferrer"><bb-icon name="wa"/><span class="lbl">Message BB</span></a>
         </div>
       </header>
-      <main class="page"><router-outlet/></main>
+      <main class="page" [class.enter]="entering()"><router-outlet/></main>
       <bb-bottom-menu class="tabs" [items]="tabs()" [active]="activeUrl()"/>
     </div>`,
   styles: [`
@@ -83,8 +83,11 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
     .r-client strong{display:block;color:#fff;font-size:14px;font-weight:600}.r-client em{display:block;font-style:normal;font-size:11px;color:var(--sidebar-faint)}
     .grp-h{display:flex;align-items:center;justify-content:space-between;width:100%;padding:8px 8px 6px;border:0;background:none;color:var(--sidebar-faint);font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border-radius:8px}
     .grp-h:hover{color:var(--sidebar-txt)}.grp-h .chev{transition:transform var(--dur) var(--ease);--ico:14px}
-    .grp.off .grp-h .chev{transform:rotate(-90deg)}.grp.off nav{display:none}
-    nav{display:flex;flex-direction:column;gap:2px}
+    .grp.off .grp-h .chev{transform:rotate(-90deg)}
+    /* groups fold on a grid track, so the rail never snaps */
+    .grp>nav{display:grid;grid-template-rows:1fr;transition:grid-template-rows 240ms var(--ease),opacity 200ms var(--ease)}
+    .grp.off>nav{grid-template-rows:0fr;opacity:0;pointer-events:none}
+    .grp>nav>div{min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:2px}
     nav a{position:relative;display:flex;align-items:center;gap:11px;min-height:40px;padding:0 10px;border-radius:9px;font-size:13.5px;font-weight:500;color:var(--sidebar-txt);transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
     nav a:hover{background:rgba(255,255,255,.06);color:#fff}
     nav a.on{background:rgba(255,255,255,.08);color:#fff;font-weight:600}
@@ -104,6 +107,9 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
     .tt span{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .tr{display:flex;gap:8px;align-items:center}
     .page{flex:1}
+    .page.enter{animation:pageIn 260ms var(--ease) both}
+    @keyframes pageIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+    @media (prefers-reduced-motion:reduce){.page.enter{animation:none}}
     .tabs{display:none}
     @media (max-width:1019px){
       .rail{transform:translateX(-24px);opacity:0;visibility:hidden;transition:transform 240ms var(--ease),opacity 240ms var(--ease),visibility 0s 240ms;box-shadow:var(--sh-lg)}
@@ -137,6 +143,7 @@ export class ShellComponent implements OnInit, OnDestroy {
       { path: 'customers', label: 'Customers', icon: 'users' } ] }
   ];
   activeUrl = signal('');
+  entering = signal(false);
   /* the phone bar: every tab carries the quick actions that screen offers */
   tabs = computed<MenuTab[]>(() => {
     const sys = this.system(); const c = this.cast.cast();
@@ -163,7 +170,11 @@ export class ShellComponent implements OnInit, OnDestroy {
     const other = this.system() === 'library' ? 'sales' : 'library';
     this.collapsed.set(new Set([other]));
     this.readTitle();
-    this.sub = this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe(() => this.readTitle());
+    this.sub = this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe(() => {
+      const was = this.activeUrl(); this.readTitle();
+      /* a screen change rises in; a query-param change on the same screen does not */
+      if (was && was !== this.activeUrl()) { this.entering.set(false); requestAnimationFrame(() => this.entering.set(true)); }
+    });
     this.tick(); this.timer = setInterval(() => this.tick(), 15000);
   }
   ngOnDestroy(){ document.body.classList.remove('in-shell'); clearInterval(this.timer); this.sub?.unsubscribe(); }

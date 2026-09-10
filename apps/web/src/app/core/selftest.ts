@@ -41,12 +41,14 @@ export async function runSelftest(cast: CastService, data: DataService){
     ok('the other system starts collapsed', document.querySelectorAll('.rail .grp.off').length === 1);
     ok('every icon is a stroke svg, none an image or emoji', [...document.querySelectorAll('bb-icon svg')].length > 0 && [...document.querySelectorAll('.rail nav a')].every(a => a.querySelector('svg')));
     ok('the phone bar is a small floating pill, not a full-width strip', desk || (tabs.getBoundingClientRect().width < innerWidth * 0.75 && parseFloat(getComputedStyle(tabs).borderRadius) >= 16), desk ? 'desk' : Math.round(tabs.getBoundingClientRect().width) + 'px of ' + innerWidth);
-    ok('the panel grows on the reference curve, 300ms, from the bottom centre', (() => { if (desk) return true; const sub = document.querySelector('.bm-sub') as HTMLElement | null; if (!sub) return false; const cs = getComputedStyle(sub); const o = cs.transformOrigin.split(' ').map(parseFloat); const r = sub.getBoundingClientRect();
-      /* computed transform-origin is in px: bottom centre means x at half the width and y at the full height */
-      /* the timing function itself contains commas, so match the whole list, not its pieces */
+    ok('the panel grows on the reference curve, 300ms, from the bottom centre, without clipping its shadow', (() => { if (desk) return true; const sub = document.querySelector('.bm-sub') as HTMLElement | null; const card = document.querySelector('.bm-card') as HTMLElement | null; if (!sub || !card) return false; const cs = getComputedStyle(sub), cc = getComputedStyle(card); const o = cs.transformOrigin.split(' ').map(parseFloat); const r = sub.getBoundingClientRect();
       const curve = 'cubic-bezier(0.45, 0, 0.25, 1)';
-      return cs.transitionDuration.split(', ').every(d => d === '0.3s') && cs.transitionTimingFunction === [curve, curve, curve, curve].join(', ') && Math.abs(o[0] - r.width / 2) < 1 && Math.abs(o[1] - r.height) < 1; })(),
-      desk ? 'desk' : (document.querySelector('.bm-sub') ? getComputedStyle(document.querySelector('.bm-sub')!).transitionTimingFunction.split(', ')[0] + ' · origin ' + getComputedStyle(document.querySelector('.bm-sub')!).transformOrigin : 'no panel'));
+      const subOk = cs.transitionDuration.split(', ').every(d => d === '0.3s') && cs.transitionTimingFunction === [curve, curve, curve].join(', ');
+      const cardOk = /clip-path/.test(cc.transitionProperty) && cc.transitionDuration === '0.3s' && cc.transitionTimingFunction === curve && /inset/.test(cc.clipPath);
+      const noLayoutAnim = !/width|height/.test(cs.transitionProperty);
+      const shadowFree = cs.overflow !== 'hidden' && cs.boxShadow !== 'none';
+      return subOk && cardOk && noLayoutAnim && shadowFree && Math.abs(o[0] - r.width / 2) < 1 && Math.abs(o[1] - r.height) < 1; })(),
+      desk ? 'desk' : (document.querySelector('.bm-sub') ? 'sub: ' + getComputedStyle(document.querySelector('.bm-sub')!).transitionProperty + ' · card: ' + getComputedStyle(document.querySelector('.bm-card')!).transitionProperty : 'no panel'));
     ok('tap targets in the rail and tab bar are 40px or taller', [...document.querySelectorAll('.rail nav a, .bm-btn')].filter(a => a.getBoundingClientRect().height > 0).every(a => a.getBoundingClientRect().height >= 40));
   } else {
     /* no shell on this screen: it must be the door or the launcher, and each has its own anatomy */

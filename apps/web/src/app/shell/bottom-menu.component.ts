@@ -20,7 +20,7 @@ export interface MenuTab { path: string; label: string; icon: string; badge?: ()
       <div class="bm-sub" [class.on]="open()" [style.width.px]="w()" [style.height.px]="h()">
         <div class="bm-card" #card>
           @for (c of view(); track c.path) {
-            <div class="bm-view">
+            <div class="bm-view" [class.swap]="swapped()">
               <div class="bm-title">{{ c.label }}</div>
               @for (a of c.menu; track a.label) {
                 <button type="button" class="bm-item" (click)="act(a)"><bb-icon [name]="a.icon"/><span>{{ a.label }}</span></button>
@@ -42,28 +42,38 @@ export interface MenuTab { path: string; label: string; icon: string; badge?: ()
     :host{display:block}
     .bm{position:fixed;left:50%;bottom:calc(14px + var(--sab));transform:translateX(-50%);z-index:40;display:flex;flex-direction:column;align-items:center}
     .bm-bar{display:flex;align-items:center;gap:4px;padding:4px;border-radius:18px;border:1px solid var(--line);
-      background:rgba(255,255,255,.95);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 8px 28px rgba(20,20,23,.12),0 1px 2px rgba(20,20,23,.06)}
+      background:rgba(255,255,255,.95);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+      box-shadow:0 8px 28px rgba(20,20,23,.12),0 1px 2px rgba(20,20,23,.06)}
     .bm-btn{position:relative;width:46px;height:46px;border:0;border-radius:16px;background:none;color:var(--muted);display:grid;place-items:center;
-      transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+      transition:background 150ms var(--ease),color 150ms var(--ease),transform 150ms var(--ease)}
     .bm-btn bb-icon{--ico:22px}
     .bm-btn.on{color:var(--brand-dark)}
     .bm-btn.sel{background:var(--surface-2);color:var(--ink)}
-    .bm-btn:active{background:var(--surface-2)}
+    .bm-btn:active{transform:scale(.92)}
     .bm-btn .dot{position:absolute;top:9px;right:9px;width:7px;height:7px;border-radius:50%;background:var(--brand);border:2px solid #fff}
-    /* the panel: sized in px from the measured card so width and height can animate */
-    .bm-sub{position:absolute;bottom:70px;left:50%;translate:-50% 0;overflow:hidden;width:0;height:0;opacity:0;transform:scale(.95,.9);transform-origin:bottom center;
-      transition:width .3s cubic-bezier(.45,0,.25,1),height .3s cubic-bezier(.45,0,.25,1),opacity .3s cubic-bezier(.45,0,.25,1),transform .3s cubic-bezier(.45,0,.25,1);pointer-events:none}
+    /* the wrapper knows the final size (measured), carries the shadow, and only ever moves
+       by transform and opacity. Nothing here animates layout, nothing clips the shadow. */
+    .bm-sub{position:absolute;bottom:70px;left:50%;translate:-50% 0;width:0;height:0;border-radius:18px;
+      opacity:0;transform:scale(.95,.9);transform-origin:bottom center;pointer-events:none;will-change:transform,opacity;
+      box-shadow:0 12px 36px rgba(20,20,23,.14),0 2px 6px rgba(20,20,23,.06);
+      transition:opacity .3s cubic-bezier(.45,0,.25,1),transform .3s cubic-bezier(.45,0,.25,1),box-shadow .3s cubic-bezier(.45,0,.25,1)}
     .bm-sub.on{opacity:1;transform:none;pointer-events:auto}
+    /* the card reveals itself from the bottom edge up, a clip on the compositor, same 300ms curve */
     .bm-card{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:max-content;border-radius:18px;border:1px solid var(--line);
-      background:rgba(255,255,255,.95);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 8px 28px rgba(20,20,23,.12)}
-    .bm-view{min-width:210px;padding:6px;animation:bmIn .25s cubic-bezier(.42,0,.58,1) both}
-    @keyframes bmIn{from{opacity:0;transform:scale(.96);filter:blur(10px)}to{opacity:1;transform:none;filter:blur(0)}}
-    .bm-title{font-size:11px;font-weight:600;color:var(--muted);padding:6px 12px 4px}
+      background:rgba(255,255,255,.98);clip-path:inset(100% 0 0 0 round 18px);
+      transition:clip-path .3s cubic-bezier(.45,0,.25,1)}
+    .bm-sub.on .bm-card{clip-path:inset(0 0 0 0 round 18px)}
+    .bm-view{min-width:214px;padding:6px}
+    .bm-view.swap{animation:bmSwap .25s cubic-bezier(.42,0,.58,1) both}
+    @keyframes bmSwap{from{opacity:0;transform:scale(.97);filter:blur(6px)}to{opacity:1;transform:none;filter:blur(0)}}
+    .bm-title{font-size:11px;font-weight:600;color:var(--muted);padding:8px 12px 4px;letter-spacing:.01em}
     .bm-item{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:12px;background:none;text-align:left;
-      font-size:15px;color:var(--ink-2);transition:background 75ms linear,color 75ms linear}
-    .bm-item bb-icon{--ico:20px;color:var(--muted);transition:color 75ms linear}
-    .bm-item:hover,.bm-item:active{background:var(--surface-2);color:var(--ink)}.bm-item:hover bb-icon{color:var(--ink)}
-    @media (prefers-reduced-motion:reduce){.bm-sub{transition:none}.bm-view{animation:none}}`]
+      font-size:15px;color:var(--ink-2);transition:background 100ms linear,color 100ms linear,transform 120ms var(--ease)}
+    .bm-item bb-icon{--ico:20px;color:var(--muted);transition:color 100ms linear}
+    .bm-item:hover,.bm-item:active{background:var(--surface-2);color:var(--ink)}.bm-item:hover bb-icon,.bm-item:active bb-icon{color:var(--ink)}
+    .bm-item:active{transform:scale(.985)}
+    @media (prefers-reduced-motion:reduce){.bm-sub,.bm-card,.bm-btn,.bm-item{transition:none}.bm-view.swap{animation:none}}
+`]
 })
 export class BottomMenuComponent implements AfterViewInit, OnDestroy {
   private router = inject(Router); private host = inject(ElementRef<HTMLElement>); private injector = inject(Injector);
@@ -71,6 +81,7 @@ export class BottomMenuComponent implements AfterViewInit, OnDestroy {
   @Input() active = '';
   @ViewChild('card') card!: ElementRef<HTMLElement>;
   open = signal<string | null>(null);
+  swapped = signal(false);
   w = signal(0); h = signal(0);
   view = computed(() => { const k = this.open(); const it = this.items.find(i => i.path === k); return it && it.menu?.length ? [it] : []; });
 
@@ -89,6 +100,7 @@ export class BottomMenuComponent implements AfterViewInit, OnDestroy {
     const same = this.open() === it.path;
     if (this.active !== it.path) this.router.navigateByUrl(it.path);
     if (same || !it.menu?.length) { this.close(); return; }
+    this.swapped.set(!!this.open());
     this.open.set(it.path);
     /* measure the moment Angular has rendered the new view, not on a browser frame:
        a throttled tab still sizes the panel correctly */
@@ -97,10 +109,13 @@ export class BottomMenuComponent implements AfterViewInit, OnDestroy {
   private measure(){
     if (!this.open()) return;
     const c = this.card?.nativeElement; if (!c) return;
-    const r = c.getBoundingClientRect();
-    if (r.width > 4 && r.height > 4) { this.w.set(Math.ceil(r.width)); this.h.set(Math.ceil(r.height)); }
+    /* layout size, never the rendered rect: the closed wrapper is scaled .95/.9 and a
+       rect read through that transform came back 10px short, leaving the shadow box
+       smaller than the card on first open */
+    const w = c.offsetWidth, h = c.offsetHeight;
+    if (w > 4 && h > 4) { this.w.set(w); this.h.set(h); }
   }
-  close(){ if (!this.open()) return; this.open.set(null); this.w.set(0); this.h.set(0); }
+  close(){ if (!this.open()) return; this.open.set(null); this.swapped.set(false); this.w.set(0); this.h.set(0); }
   act(a: MenuAction){
     this.close();
     if (a.href) { window.open(a.href, '_blank', 'noopener'); return; }

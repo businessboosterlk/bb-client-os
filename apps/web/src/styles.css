@@ -35,6 +35,10 @@ strong{font-weight:600}
 body.in-shell .statusfill{display:none}
 @media (pointer:coarse){input,select,textarea{font-size:16px!important}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+:is(button,a,input,select,textarea,[tabindex]):focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:8px}
+.tbl-wrap,.board{scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+@media (pointer:coarse){.tbl-wrap,.board{scrollbar-width:none}.tbl-wrap::-webkit-scrollbar,.board::-webkit-scrollbar{display:none}}
+::selection{background:var(--brand-soft);color:var(--ink)}
 
 /* type ramp */
 .t-display{font-size:30px;font-weight:700;letter-spacing:-.025em;line-height:1.15}
@@ -131,10 +135,12 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 .search input:focus{outline:none;border-color:var(--brand)}
 .seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
 .seg button{min-height:32px;padding:0 12px;border:0;border-radius:8px;background:none;font-size:12.5px;font-weight:600;color:var(--muted)}
+.seg button{transition:background 150ms var(--ease),color 150ms var(--ease)}
 .seg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--sh-1)}
 .seg button svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;vertical-align:-2px;margin-right:4px}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chips button{min-height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface);font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.chips button{transition:background 150ms var(--ease),color 150ms var(--ease),transform 120ms var(--ease)}.chips button:active{transform:scale(.96)}
 .chips button.on{background:var(--ink);color:#fff;border-color:transparent}
 .ico{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--brand-soft);color:var(--brand-dark);font-weight:700;font-size:12px;flex-shrink:0}
@@ -147,7 +153,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 .list .li .ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--brand-soft);color:var(--brand-dark);flex-shrink:0}
 .list .li .go{color:var(--faint)}
 .list .li.link{cursor:pointer}
-.list .li.link:hover{background:var(--surface-2)}
+.list .li.link{transition:background 120ms var(--ease)}.list .li.link:hover{background:var(--surface-2)}.list .li.link:active{background:var(--line)}
 .new-badge{display:inline-block;font-size:10px;line-height:1.4;font-weight:700;color:var(--on-accent);background:var(--brand);padding:2px 6px;border-radius:999px;margin-left:6px;vertical-align:middle}
 
 /* drawer: floats, so it carries the shadow */
