@@ -3,10 +3,11 @@ import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CastService } from '../core/cast.service';
 import { SessionService } from '../core/session.service';
+import { DataService } from '../core/data.service';
 import { setTop } from '../shell/shell.component';
 
-/* The door. Pick your name, enter the PIN, land on the launcher. On a phone the
-   PIN field is 16px so the page never zooms, and the last field submits. */
+/* The door. Business name and the code Business Booster gave you. One door for every
+   client; the name decides whose Hub opens, the code decides the seat. */
 @Component({
   selector: 'bb-login',
   standalone: true,
@@ -15,48 +16,48 @@ import { setTop } from '../shell/shell.component';
     <div class="login">
       <div class="login-card">
         <div class="brand">
-          @if (cast.cast()?.brand?.logo) { <img class="mark" [src]="cast.cast()!.brand.logo" [alt]="cast.cast()!.name"> }
-          <h1>{{ cast.cast()?.name }}</h1>
-          <p>Your OS, by Business Booster</p>
+          <img class="bb" src="assets/bb-logo.png" alt="Business Booster">
+          <h1>The Hub</h1>
+          <p>Your library and your sales, in one place.</p>
         </div>
-        <div class="who">
-          @for (u of cast.cast()?.users || []; track u.name) {
-            <button type="button" [class.on]="name() === u.name" (click)="name.set(u.name); focusPin()">
-              <span class="avatar">{{ u.name.slice(0,1) }}</span>
-              <span><strong>{{ u.name }}</strong><em>{{ u.role }}</em></span>
-            </button>
-          }
-        </div>
-        <form (submit)="go($event)">
+        <form (submit)="go($event)" autocomplete="off">
           <div class="field">
-            <label for="pin">PIN</label>
-            <input id="pin" type="password" inputmode="numeric" autocomplete="off" enterkeyhint="go" [(ngModel)]="pin" name="pin" placeholder="Enter your PIN" [attr.aria-invalid]="bad()">
-            @if (bad()) { <span class="err">That is not the PIN for {{ name() || 'this account' }}.</span> }
-            @if (cast.cast()?.data?.mode === 'local') { <span class="hint">Demo: the PIN is {{ cast.cast()?.pin }}. A real client gets a private one.</span> }
+            <label for="biz">Business name</label>
+            <input id="biz" type="text" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" [(ngModel)]="business" name="business" placeholder="yourbusiness.lk" [attr.aria-invalid]="!!session.error()">
           </div>
-          <button class="btn" type="submit" [disabled]="!name()">Sign in</button>
+          <div class="field">
+            <label for="pin">Code</label>
+            <input id="pin" type="password" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" [(ngModel)]="code" name="code" placeholder="The code you were given" [attr.aria-invalid]="!!session.error()">
+            @if (session.error()) { <span class="err">{{ session.error() }}</span> }
+            @if (!cast.apiMode()) { <span class="hint">Demo: business <strong>cinnamon.lk</strong>, code <strong>1111</strong>. A real client gets private codes.</span> }
+          </div>
+          <button class="btn" type="submit" [disabled]="busy()">{{ busy() ? 'Opening' : 'Open my Hub' }}</button>
         </form>
-        <div class="foot"><img src="assets/bb-logo.png" alt="Business Booster"></div>
+        <p class="foot">Lost your code? Message Business Booster and a new one is issued in a minute.</p>
       </div>
     </div>`,
   styles: [`
-    .login{min-height:100dvh;display:grid;place-items:center;padding:calc(20px + var(--sat)) 16px calc(20px + var(--sab));background:var(--sidebar)}
+    .login{min-height:100dvh;display:grid;place-items:center;padding:calc(20px + var(--sat)) 16px calc(20px + var(--sab));background:#101012}
     .login-card{width:100%;max-width:400px;background:var(--surface);border-radius:20px;padding:30px 26px;box-shadow:var(--sh-lg)}
-    .brand{text-align:center;margin-bottom:22px}.brand .mark{height:44px;margin-bottom:10px}
-    .brand h1{font-size:22px;font-weight:700;letter-spacing:-.02em}.brand p{color:var(--muted);font-size:13px;margin-top:4px}
-    .who{display:grid;gap:8px;margin-bottom:18px}
-    .who button{display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 12px;border:1px solid var(--line-2);border-radius:12px;background:var(--surface);text-align:left;transition:border-color var(--dur) var(--ease),background var(--dur) var(--ease)}
-    .who button.on{border-color:var(--brand);background:var(--brand-soft-2)}
-    .who strong{display:block;font-size:14px}.who em{display:block;font-style:normal;font-size:12px;color:var(--muted)}
+    .brand{text-align:center;margin-bottom:22px}.brand .bb{height:24px;margin-bottom:14px;opacity:.9}
+    .brand h1{font-size:24px;font-weight:700;letter-spacing:-.02em}.brand p{color:var(--muted);font-size:13px;margin-top:4px}
     form{display:grid;gap:14px}.err{font-size:12px;color:var(--red);font-weight:600}
-    .btn{width:100%;min-height:46px}
-    .foot{margin-top:22px;text-align:center}.foot img{height:22px;opacity:.7}`]
+    .btn{width:100%;min-height:46px;margin-top:4px}
+    .foot{margin-top:18px;text-align:center;color:var(--muted);font-size:12px;line-height:1.5}`]
 })
 export class LoginComponent implements OnDestroy {
-  cast = inject(CastService); private session = inject(SessionService); private router = inject(Router);
-  name = signal(''); pin = ''; bad = signal(false);
-  constructor(){ setTop(getComputedStyle(document.documentElement).getPropertyValue('--sidebar').trim() || '#101012'); if (this.session.user()) this.router.navigate(['/start']); const u = this.cast.cast()?.users?.[0]; if (u) this.name.set(u.name); }
+  cast = inject(CastService); session = inject(SessionService); data = inject(DataService); private router = inject(Router);
+  business = ''; code = ''; busy = signal(false);
+  constructor(){
+    setTop('#101012');
+    if (this.session.user() && this.cast.cast()) this.router.navigate(['/start']);
+    const c = new URLSearchParams(location.search).get('c'); if (c) this.business = c;
+  }
   ngOnDestroy(){ setTop('#f5f5f7'); }
-  focusPin(){ setTimeout(() => (document.getElementById('pin') as HTMLInputElement | null)?.focus(), 0); }
-  go(e: Event){ e.preventDefault(); if (this.session.login(this.name(), this.pin)) { this.bad.set(false); this.router.navigate(['/start']); } else this.bad.set(true); }
+  async go(e: Event){
+    e.preventDefault(); if (this.busy()) return; this.busy.set(true);
+    try {
+      if (await this.session.login(this.business, this.code)) { await this.data.init(); this.router.navigate(['/start']); }
+    } finally { this.busy.set(false); }
+  }
 }

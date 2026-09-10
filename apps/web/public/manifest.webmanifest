@@ -1,7 +1,7 @@
 {
-  "name": "Your OS by Business Booster",
-  "short_name": "Your OS",
-  "start_url": "./?c=demo&src=app",
+  "name": "The Hub by Business Booster",
+  "short_name": "The Hub",
+  "start_url": "./?src=app",
   "display": "standalone",
   "background_color": "#f5f5f7",
   "theme_color": "#f5f5f7",

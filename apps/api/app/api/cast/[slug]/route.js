@@ -1,8 +1,7 @@
-import { loadCast } from '../../../../lib/casts.js';
+import { loadCast } from '../../../../lib/clients.js';
 export const dynamic = 'force-dynamic';
 export async function GET(_req, { params }){
   const { slug } = await params;
   const cast = await loadCast(slug);
-  if(!cast) return Response.json({ error: 'No client configured for ' + slug }, { status: 404 });
-  return Response.json(cast);
+  return cast ? Response.json(cast) : Response.json({ error: 'No client configured for ' + slug }, { status: 404 });
 }

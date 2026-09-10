@@ -8,11 +8,13 @@ import { DataService, waLink } from './data.service';
 export async function runSelftest(cast: CastService, data: DataService){
   const T: [boolean, string, string][] = [];
   const ok = (name: string, pass: boolean, note = '') => T.push([!!pass, name, note]);
-  const c = cast.cast()!;
+  const c = cast.cast();
   const cs = getComputedStyle(document.documentElement);
+  if (c) {
   ok('cast loaded with slug, name, wa and a brand hex', !!c.slug && !!c.name && /^94\d{9}$/.test(c.wa) && /^#[0-9a-f]{6}$/i.test(c.brand.hex));
   ok('palette derived from the one brand hex', cs.getPropertyValue('--brand').trim().toLowerCase() === c.brand.hex.toLowerCase() && cs.getPropertyValue('--brand-soft').trim() !== '');
-  ok('manifest swapped per tenant', ((document.getElementById('manifest') as HTMLLinkElement)?.href || '').includes(encodeURIComponent(c.slug)));
+  ok('manifest named for this client', ((document.getElementById('manifest') as HTMLLinkElement)?.href || '').includes(encodeURIComponent(c.name.split(' ')[0])));
+  }
   ok('viewport covers the notch', /viewport-fit=cover/.test(document.querySelector('meta[name=viewport]')?.getAttribute('content') || ''));
   ok('safe area variables in use', cs.getPropertyValue('--sat') !== '' && !!document.querySelector('.statusfill'));
   /* one colour at the top: inside the shell the glass topbar paints the inset and the
@@ -54,13 +56,16 @@ export async function runSelftest(cast: CastService, data: DataService){
     /* no shell on this screen: it must be the door or the launcher, and each has its own anatomy */
     const door = document.querySelector('.login-card'), doors = document.querySelectorAll('.door');
     ok('a screen without the shell is the door or the launcher', !!door || doors.length === 2, door ? 'login' : doors.length + ' doors');
-    ok('the door lists every cast user and one PIN field', !door || (document.querySelectorAll('.who button').length === (c.users || []).length && !!document.getElementById('pin')));
+    ok('the door asks for a business name and a code, nothing else', !door || (!!document.getElementById('biz') && !!document.getElementById('pin') && document.querySelectorAll('.login-card input').length === 2));
     ok('the PIN field cannot zoom the page on a phone', !door || parseFloat(getComputedStyle(document.getElementById('pin')!).fontSize) >= (matchMedia('(pointer:coarse)').matches ? 16 : 14));
     ok('the launcher offers exactly two doors, Library and Sales', !!door || (doors.length === 2 && /library/i.test(doors[0].textContent || '') && /sales/i.test(doors[1].textContent || '')));
-    ok('sign in and the doors are 44px or taller', [...document.querySelectorAll('.login-card .btn, .who button, .door')].every(a => a.getBoundingClientRect().height >= 44));
+    ok('sign in and the doors are 44px or taller', [...document.querySelectorAll('.login-card .btn, .door')].every(a => a.getBoundingClientRect().height >= 44));
+    ok('the static alias book lists only PIN-protected local casts', await fetch('casts/index.json', { cache: 'no-cache' }).then(r => r.json()).then((idx: any[]) => idx.every(i => i.slug === 'demo')).catch(() => false));
+    ok('the door never carries a seat code in the page', !door || !/[A-Z]{3}-[A-Z0-9]{4}-[A-Z0-9]{4}/.test(document.body.innerText));
   }
   ok('a local number becomes a real WhatsApp link', waLink('0771234567', 'X') === 'https://wa.me/94771234567?text=Hello%20X%2C%20' && waLink('', 'X') === '');
   /* behaviour, on a throwaway store */
+  if (c && data.mode() === 'local') {
   const real = localStorage.getItem('bbos_' + c.slug);
   try {
     localStorage.setItem('bbos_' + c.slug, '{}'); await data.reload();
@@ -81,6 +86,7 @@ export async function runSelftest(cast: CastService, data: DataService){
     if (real === null) localStorage.removeItem('bbos_' + c.slug); else localStorage.setItem('bbos_' + c.slug, real);
     await data.reload();
   }
+  } else if (c) { ok('api mode: rows live on the server, the harness never writes into a client book', data.mode() === 'api', 'mode ' + data.mode()); }
   const pass = T.filter(t => t[0]).length;
   console.log(`BBOS SELFTEST: ${pass}/${T.length} passed`);
   T.forEach(t => console.log((t[0] ? 'PASS ' : 'FAIL ') + t[1] + (t[2] ? ' (' + t[2] + ')' : '')));

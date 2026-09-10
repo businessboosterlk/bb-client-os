@@ -13,6 +13,7 @@ import { DashboardComponent } from './pages/sales/dashboard.component';
 import { EnquiriesComponent } from './pages/sales/enquiries.component';
 import { PipelineComponent } from './pages/sales/pipeline.component';
 import { CustomersComponent } from './pages/sales/customers.component';
+import { TasksComponent } from './pages/sales/tasks.component';
 
 const signedIn: CanActivateFn = () => {
   const s = inject(SessionService), r = inject(Router);
@@ -36,7 +37,8 @@ export const routes: Routes = [
     { path: 'dashboard', component: DashboardComponent, data: { title: 'Dashboard' } },
     { path: 'enquiries', component: EnquiriesComponent, data: { title: 'Enquiries' } },
     { path: 'pipeline', component: PipelineComponent, data: { title: 'Pipeline' } },
-    { path: 'customers', component: CustomersComponent, data: { title: 'Customers' } }
+    { path: 'customers', component: CustomersComponent, data: { title: 'Customers' } },
+    { path: 'tasks', component: TasksComponent, data: { title: 'Tasks' } }
   ] },
   { path: '**', redirectTo: 'start' }
 ];

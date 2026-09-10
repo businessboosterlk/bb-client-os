@@ -16,7 +16,7 @@ export interface Customer {
   id: string; name: string; phone?: string; email?: string; bought?: string; value: number;
   since: string; dealId?: string; notes?: string; createdAt: string; updatedAt: string;
 }
-export interface Task { id: string; text: string; due?: string; done: boolean; dealId?: string; createdAt: string; updatedAt: string; }
+export interface Task { id: string; text: string; due?: string; done: boolean; dealId?: string; customerId?: string; who?: string; by?: string; createdAt: string; updatedAt: string; }
 export interface Activity { id: string; dealId: string; type: 'call' | 'message' | 'meeting' | 'note' | 'quote'; summary: string; createdAt: string; updatedAt: string; }
 
 export type Table = 'enquiries' | 'deals' | 'customers' | 'tasks' | 'activities';
@@ -27,7 +27,7 @@ export interface LibMonth { id: string; label: string; videos: LibItem[]; posts:
 export interface Fact { k: string; v: string; g?: string; }
 
 export interface Cast {
-  slug: string; name: string; short?: string; wa: string; updated?: string;
+  slug: string; aliases?: string[]; name: string; short?: string; wa: string; updated?: string;
   brand: { hex: string; logo?: string };
   words: Record<string, string>;
   stages: StageDef[];

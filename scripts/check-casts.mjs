@@ -8,7 +8,7 @@ import path from 'node:path';
 
 const DIR = path.resolve(process.cwd(), 'casts');
 const FORBIDDEN_KEYS = ['leads', 'enquiryRows', 'customersRows', 'deals', 'contacts', 'pinHash', 'serviceRole', 'service_role', 'anonKey', 'apiKey', 'secret', 'token'];
-const REQUIRED = ['slug', 'name', 'wa', 'brand', 'words', 'stages', 'library'];
+const REQUIRED = ['slug', 'name', 'wa', 'brand', 'words', 'stages', 'library', 'aliases', 'data'];
 let bad = 0, n = 0;
 
 function walk(o, trail, hits){
@@ -30,6 +30,8 @@ for(const f of (await readdir(DIR)).filter(f => f.endsWith('.json'))){
   if(cast.slug !== f.replace('.json', '')) problems.push('slug does not match file name');
   if(!/^#[0-9a-f]{6}$/i.test(cast.brand?.hex || '')) problems.push('brand.hex is not a six digit hex');
   if(!/^94\d{9}$/.test(cast.wa || '')) problems.push('wa is not a 94 number');
+  if(!['local','api'].includes(cast.data?.mode)) problems.push('data.mode must be local or api');
+  if(cast.pin && cast.data?.mode === 'api') problems.push('an api cast must not carry a pin: seats live on the server');
   const hits = []; walk(cast, 'cast', hits);
   if(hits.length) problems.push('forbidden keys: ' + hits.join(', '));
   /* a phone number anywhere outside the client's own wa is a leak */

@@ -1,5 +1,6 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { CastService } from './cast.service';
+import { SessionService } from './session.service';
 import { Enquiry, Deal, Customer, Task, Activity, Table, Stage } from './models';
 
 /* The data layer. One interface, two adapters, chosen by the cast:
@@ -24,24 +25,48 @@ class LocalAdapter implements Adapter {
   async update<T>(t: Table, id: string, patch: Partial<T>) { const d = this.read(); const rows = d[t] || []; const i = rows.findIndex(r => r.id === id); if (i < 0) return null; rows[i] = { ...rows[i], ...patch, id, updatedAt: now() }; d[t] = rows; this.write(d); return rows[i] as T; }
   async remove(t: Table, id: string) { const d = this.read(); d[t] = (d[t] || []).filter(r => r.id !== id); this.write(d); }
 }
+/* The Hub adapter: every call carries the seat's token. A write that cannot reach the
+   server is kept in an outbox in this browser and replayed the next time one succeeds,
+   so a dropped signal loses nothing. A 401 means the seat is gone: back to the door. */
 class ApiAdapter implements Adapter {
-  constructor(private base: string, private slug: string) {}
+  onAuthLost?: () => void; onOffline?: (n: number) => void;
+  constructor(private base: string, private slug: string, private token: () => string) {}
+  private outKey(){ return 'hub_outbox_' + this.slug; }
+  private outbox(): any[] { try { return JSON.parse(localStorage.getItem(this.outKey()) || '[]'); } catch { return []; } }
+  private setOutbox(q: any[]){ try { localStorage.setItem(this.outKey(), JSON.stringify(q)); } catch {} this.onOffline?.(q.length); }
   private async go<T>(path: string, init?: RequestInit): Promise<T> {
-    const res = await fetch(`${this.base}/api/${this.slug}/${path}`, { ...init, headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) } });
+    const res = await fetch(`${this.base}/api/${this.slug}/${path}`, { ...init, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.token(), ...(init?.headers || {}) } });
+    if (res.status === 401) { this.onAuthLost?.(); throw new Error('401'); }
     if (res.status === 204) return null as T;
     if (!res.ok) throw new Error(`${res.status} on ${path}`);
     return res.json();
   }
-  list<T>(t: Table) { return this.go<T[]>(t); }
-  create<T>(t: Table, row: Partial<T>) { return this.go<T>(t, { method: 'POST', body: JSON.stringify(row) }); }
-  update<T>(t: Table, id: string, patch: Partial<T>) { return this.go<T>(`${t}/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }); }
-  async remove(t: Table, id: string) { await this.go(`${t}/${id}`, { method: 'DELETE' }); }
+  async flush(){
+    const q = this.outbox(); if (!q.length) return;
+    const left: any[] = [];
+    for (const w of q) { try { await this.go(w.path, { method: w.method, body: w.body }); } catch (e: any) { if (e.message === '401') return; left.push(w); } }
+    this.setOutbox(left);
+  }
+  private async write<T>(path: string, method: string, body?: any, fallback?: T): Promise<T> {
+    try { const r = await this.go<T>(path, { method, body: body ? JSON.stringify(body) : undefined }); this.flush(); return r; }
+    catch (e: any) {
+      if (e.message === '401') throw e;
+      this.setOutbox([...this.outbox(), { path, method, body: body ? JSON.stringify(body) : undefined }]);
+      return fallback as T;
+    }
+  }
+  async list<T>(t: Table) { await this.flush(); return this.go<T[]>(t); }
+  create<T>(t: Table, row: Partial<T>) { const local = { ...row, id: uid(), createdAt: now(), updatedAt: now() } as T; return this.write<T>(t, 'POST', local, local); }
+  update<T>(t: Table, id: string, patch: Partial<T>) { return this.write<T | null>(`${t}/${id}`, 'PATCH', patch, null); }
+  async remove(t: Table, id: string) { await this.write(`${t}/${id}`, 'DELETE'); }
 }
 
 @Injectable({ providedIn: 'root' })
 export class DataService {
-  private castSvc = inject(CastService);
+  private castSvc = inject(CastService); private session = inject(SessionService);
   private adapter!: Adapter;
+  readonly pending = signal(0);
+  readonly authLost = signal(false);
   readonly ready = signal(false);
   readonly mode = signal<'local' | 'api'>('local');
   readonly enquiries = signal<Enquiry[]>([]);
@@ -73,10 +98,16 @@ export class DataService {
 
   async init() {
     const c = this.castSvc.cast(); if (!c) return;
-    const api = c.data?.mode === 'api' && c.data.api;
+    const api = this.castSvc.config().api;
     this.mode.set(api ? 'api' : 'local');
-    this.adapter = api ? new ApiAdapter(c.data.api!, c.slug) : new LocalAdapter('bbos_' + c.slug);
-    await this.reload();
+    if (api) {
+      const a = new ApiAdapter(api, c.slug, () => this.session.token());
+      a.onAuthLost = () => this.authLost.set(true);
+      a.onOffline = n => this.pending.set(n);
+      this.adapter = a;
+      addEventListener('online', () => a.flush().then(() => this.reload()));
+    } else this.adapter = new LocalAdapter('bbos_' + c.slug);
+    try { await this.reload(); } catch {}
     this.ready.set(true);
   }
   async reload() {
@@ -92,9 +123,10 @@ export class DataService {
     this.enquiries.update(x => [r, ...x]); return r;
   }
   async updateEnquiry(id: string, patch: Partial<Enquiry>) {
-    const r = await this.adapter.update<Enquiry>('enquiries', id, patch);
+    const r = (await this.adapter.update<Enquiry>('enquiries', id, patch)) || this.merge(this.enquiries(), id, patch);
     if (r) this.enquiries.update(x => x.map(e => e.id === id ? r : e)); return r;
   }
+  private merge<T extends { id: string }>(rows: T[], id: string, patch: Partial<T>): T | null { const cur = rows.find(r => r.id === id); return cur ? { ...cur, ...patch, updatedAt: now() } as T : null; }
   async removeEnquiry(id: string) { await this.adapter.remove('enquiries', id); this.enquiries.update(x => x.filter(e => e.id !== id)); }
   /* an enquiry becomes a deal: the deal carries the link back, the enquiry is marked converted */
   async convertEnquiry(e: Enquiry, extra: Partial<Deal> = {}) {
@@ -110,7 +142,7 @@ export class DataService {
     this.deals.update(x => [r, ...x]); return r;
   }
   async updateDeal(id: string, patch: Partial<Deal>) {
-    const r = await this.adapter.update<Deal>('deals', id, patch);
+    const r = (await this.adapter.update<Deal>('deals', id, patch)) || this.merge(this.deals(), id, patch);
     if (r) this.deals.update(x => x.map(d => d.id === id ? r : d)); return r;
   }
   async removeDeal(id: string) { await this.adapter.remove('deals', id); this.deals.update(x => x.filter(d => d.id !== id)); }
@@ -135,14 +167,15 @@ export class DataService {
     this.customers.update(x => [r, ...x]); return r;
   }
   async updateCustomer(id: string, patch: Partial<Customer>) {
-    const r = await this.adapter.update<Customer>('customers', id, patch);
+    const r = (await this.adapter.update<Customer>('customers', id, patch)) || this.merge(this.customers(), id, patch);
     if (r) this.customers.update(x => x.map(c => c.id === id ? r : c)); return r;
   }
   async removeCustomer(id: string) { await this.adapter.remove('customers', id); this.customers.update(x => x.filter(c => c.id !== id)); }
 
   /* tasks and activity */
   async addTask(row: Partial<Task>) { const r = await this.adapter.create<Task>('tasks', { done: false, ...row }); this.tasks.update(x => [r, ...x]); return r; }
-  async toggleTask(id: string) { const t = this.tasks().find(x => x.id === id); if (!t) return; const r = await this.adapter.update<Task>('tasks', id, { done: !t.done }); if (r) this.tasks.update(x => x.map(y => y.id === id ? r : y)); }
+  async toggleTask(id: string) { const t = this.tasks().find(x => x.id === id); if (!t) return; const r = (await this.adapter.update<Task>('tasks', id, { done: !t.done })) || this.merge(this.tasks(), id, { done: !t.done }); if (r) this.tasks.update(x => x.map(y => y.id === id ? r : y)); }
+  async updateTask(id: string, patch: Partial<Task>) { const r = (await this.adapter.update<Task>('tasks', id, patch)) || this.merge(this.tasks(), id, patch); if (r) this.tasks.update(x => x.map(y => y.id === id ? r : y)); return r; }
   async removeTask(id: string) { await this.adapter.remove('tasks', id); this.tasks.update(x => x.filter(t => t.id !== id)); }
   async log(dealId: string, type: Activity['type'], summary: string) {
     const r = await this.adapter.create<Activity>('activities', { dealId, type, summary });

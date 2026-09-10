@@ -29,7 +29,7 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
     <aside class="rail" [class.open]="railOpen()" aria-label="Navigation">
       <div class="r-brand">
         <img src="assets/bb-logo.png" alt="Business Booster">
-        <span class="r-eyebrow">Your OS</span>
+        <span class="r-eyebrow">The Hub</span>
       </div>
       <div class="r-clock">{{ clock() }}</div>
       <a class="r-client" routerLink="/start" (click)="railOpen.set(false)">
@@ -62,7 +62,8 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
     <div class="main">
       <header class="topbar">
         <button class="x hamb" type="button" (click)="railOpen.set(true)" aria-label="Menu"><bb-icon name="menu"/></button>
-        <div class="tt"><strong>{{ title() }}</strong><span>{{ system() === 'library' ? 'Your library' : 'Your sales' }} · {{ cast.cast()?.name }}</span></div>
+        <div class="tt"><strong>{{ title() }}</strong><span>{{ system() === 'library' ? 'Your library' : 'Your sales' }} · {{ cast.cast()?.name }}</span>
+          @if (data.pending() > 0) { <em class="off">{{ data.pending() }} waiting to sync</em> }</div>
         <div class="tr">
           <a class="btn wa sm" [href]="wa()" target="_blank" rel="noreferrer"><bb-icon name="wa"/><span class="lbl">Message BB</span></a>
         </div>
@@ -105,6 +106,7 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
     .hamb{display:none}
     .tt{flex:1;min-width:0}.tt strong{display:block;font-size:15px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .tt span{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .tt .off{display:inline-block;font-style:normal;font-size:10.5px;font-weight:600;color:var(--amber);background:var(--amber-soft);padding:1px 7px;border-radius:999px;margin-top:2px}
     .tr{display:flex;gap:8px;align-items:center}
     .page{flex:1}
     .page.enter{animation:pageIn 260ms var(--ease) both}
@@ -139,8 +141,9 @@ export class ShellComponent implements OnInit, OnDestroy {
     { key: 'sales', label: 'Sales', items: [
       { path: 'dashboard', label: 'Dashboard', icon: 'dash' },
       { path: 'enquiries', label: 'Enquiries', icon: 'inbox', badge: () => this.data.waiting().length },
-      { path: 'pipeline', label: 'Pipeline', icon: 'pipe', badge: () => this.data.dueTasks().length + this.data.stale().length },
-      { path: 'customers', label: 'Customers', icon: 'users' } ] }
+      { path: 'pipeline', label: 'Pipeline', icon: 'pipe', badge: () => this.data.stale().length },
+      { path: 'customers', label: 'Customers', icon: 'users' },
+      { path: 'tasks', label: 'Tasks', icon: 'check', badge: () => this.data.dueTasks().length } ] }
   ];
   activeUrl = signal('');
   entering = signal(false);
@@ -156,7 +159,8 @@ export class ShellComponent implements OnInit, OnDestroy {
       dashboard: [ { label: 'New ' + this.cast.word('enquiry', 'enquiry').toLowerCase(), icon: 'plus', link: '/sales/enquiries', params: { add: 1 } }, { label: 'Your library', icon: 'video', link: '/library' }, { label: 'Sign out', icon: 'out', run: () => this.out() } ],
       enquiries: [ { label: 'New ' + this.cast.word('enquiry', 'enquiry').toLowerCase(), icon: 'plus', link: '/sales/enquiries', params: { add: 1 } }, { label: 'Waiting', icon: 'inbox', link: '/sales/enquiries', params: { f: 'new' } }, { label: 'Everything', icon: 'list', link: '/sales/enquiries', params: { f: 'all' } } ],
       pipeline: [ { label: 'Board', icon: 'board', link: '/sales/pipeline', params: { view: 'board' } }, { label: 'List', icon: 'list', link: '/sales/pipeline', params: { view: 'list' } }, { label: 'New deal', icon: 'plus', link: '/sales/pipeline', params: { add: 1 } } ],
-      customers: [ { label: 'New ' + this.cast.word('customer', 'customer').toLowerCase(), icon: 'plus', link: '/sales/customers', params: { add: 1 } } ]
+      customers: [ { label: 'New ' + this.cast.word('customer', 'customer').toLowerCase(), icon: 'plus', link: '/sales/customers', params: { add: 1 } } ],
+      tasks: [ { label: 'New task', icon: 'plus', link: '/sales/tasks', params: { add: 1 } }, { label: 'Open', icon: 'check', link: '/sales/tasks' } ]
     };
     return this.groups.find(g => g.key === sys)!.items.map(it => ({ ...it, path: '/' + sys + '/' + it.path, menu: menus[it.path] || [] }));
   });
