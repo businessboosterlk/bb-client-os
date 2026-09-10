@@ -23,7 +23,10 @@ export async function runSelftest(cast: CastService, data: DataService){
   const inShell = document.body.classList.contains('in-shell');
   ok('status strip is one colour with the screen under it',
      inShell ? getComputedStyle(strip).display === 'none'
-             : (cs.getPropertyValue('--top').trim() === (document.querySelector('.door .card') ? '#0b0b0e' : cs.getPropertyValue('--bg').trim())),
+             : (document.querySelector('.door .card')
+                 ? lumOf(getComputedStyle(document.querySelector('.door')!).backgroundColor) < .06 &&
+                   cs.getPropertyValue('--top').trim() === cs.getPropertyValue('--door-ground').trim()
+                 : cs.getPropertyValue('--top').trim() === cs.getPropertyValue('--bg').trim()),
      inShell ? 'shell: topbar owns the inset' : 'door or launcher: --top ' + cs.getPropertyValue('--top').trim());
   ok('browser chrome colour matches the screen too',
      (document.querySelector('meta[name=theme-color]')?.getAttribute('content') || '') === cs.getPropertyValue('--top').trim());
@@ -64,6 +67,12 @@ export async function runSelftest(cast: CastService, data: DataService){
     ok('sign in and the doors are 44px or taller', [...document.querySelectorAll('.door .enter, .door')].every(a => a.getBoundingClientRect().height >= 44));
     ok('the static alias book lists only PIN-protected local casts', await fetch('casts/index.json', { cache: 'no-cache' }).then(r => r.json()).then((idx: any[]) => idx.every(i => i.slug === 'demo')).catch(() => false));
     ok('the mark sits on a dark card, never white on white', !door || (() => { const bg = getComputedStyle(document.querySelector('.card')!).backgroundColor.match(/\d+/g)!.map(Number); return (bg[0] * .2126 + bg[1] * .7152 + bg[2] * .0722) / 255 < .25 && !!document.querySelector('.card img.mark'); })());
+    ok('the door is black and white, no accent anywhere', !door || (() => {
+      const grey = (el: Element | null, prop: 'color' | 'backgroundColor') => { if (!el) return true; const c = getComputedStyle(el)[prop].match(/[\d.]+/g); if (!c) return true; const [r, g, b] = c.map(Number); return Math.max(r, g, b) - Math.min(r, g, b) <= 10; };
+      return grey(document.querySelector('.door'), 'backgroundColor') && grey(document.querySelector('.door .card'), 'backgroundColor') &&
+             grey(document.querySelector('.sys'), 'color') && grey(document.querySelector('.enter'), 'backgroundColor') &&
+             grey(document.querySelector('.big'), 'backgroundColor'); })());
+    ok('the spaced lines sit on the optical centre, not pulled left', !door || ['.sys', '.enter', '.big'].every(sel => { const e = document.querySelector(sel); if (!e) return false; const cs2 = getComputedStyle(e); return Math.abs(parseFloat(cs2.textIndent) - parseFloat(cs2.letterSpacing)) < .6; }));
     ok('the door never carries a seat code in the page', !door || !/[A-Z]{3}-[A-Z0-9]{4}-[A-Z0-9]{4}/.test(document.body.innerText));
   }
   ok('a local number becomes a real WhatsApp link', waLink('0771234567', 'X') === 'https://wa.me/94771234567?text=Hello%20X%2C%20' && waLink('', 'X') === '');
@@ -95,4 +104,5 @@ export async function runSelftest(cast: CastService, data: DataService){
   T.forEach(t => console.log((t[0] ? 'PASS ' : 'FAIL ') + t[1] + (t[2] ? ' (' + t[2] + ')' : '')));
   return { pass, total: T.length, fails: T.filter(t => !t[0]).map(t => t[1]) };
 }
+function lumOf(c: string){ const m = c.match(/[\d.]+/g); if (!m) return 1; const [r, g, b] = m.map(Number); return (r * .2126 + g * .7152 + b * .0722) / 255; }
 function inScroller(e: Element){ let p = e.parentElement; while (p && p !== document.body) { const ox = getComputedStyle(p).overflowX; if (ox === 'auto' || ox === 'scroll') return true; p = p.parentElement; } return false; }
