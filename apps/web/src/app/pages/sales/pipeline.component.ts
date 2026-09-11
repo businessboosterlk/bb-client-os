@@ -78,7 +78,7 @@ import { IconComponent } from '../../ui/icon.component';
                 <td class="t-small" [class.warn]="quiet(d) >= 5 && open(d)">{{ quiet(d) === 0 ? 'Today' : quiet(d) + ' days ago' }}</td>
                 <td class="acts" (click)="$event.stopPropagation()">@if (waLink(d.phone, d.name); as w) { <a class="btn wa sm icon" [href]="w" target="_blank" rel="noreferrer"><bb-icon name="wa"/></a> }</td>
               </tr>
-            } @empty { <tr><td colspan="6"><div class="empty"><strong>Nothing here</strong>Start an enquiry, or add a deal, and it lands here.</div></td></tr> }
+            } @empty { <tr><td colspan="6"><div class="empty"><strong>Nothing here</strong>Start an enquiry or add a deal and it lands here.</div></td></tr> }
           </tbody>
         </table>
       </div>
@@ -110,8 +110,8 @@ import { IconComponent } from '../../ui/icon.component';
     .cdk-drag-animating{transition:transform 200ms var(--ease)}
     .col-empty{padding:22px 10px;text-align:center;font-size:12px;color:var(--faint);border:1px dashed var(--line);border-radius:12px}
     th.s{cursor:pointer;user-select:none}
-    .st{min-height:30px;padding:2px 24px 2px 9px;border-radius:999px;border:1px solid transparent;font-size:11.5px;font-weight:600;background:var(--surface-2);color:var(--ink-2);appearance:none;-webkit-appearance:none;
-      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236f7078' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 7px center;background-size:11px}
+    .st{min-height:30px;padding:2px 30px 2px 11px;border-radius:999px;border:1px solid transparent;font-size:11.5px;font-weight:600;background:var(--surface-2);color:var(--ink-2);appearance:none;-webkit-appearance:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236f7078' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:11px}
     .st.talking{background-color:var(--blue-soft);color:var(--blue)}.st.quoted{background-color:var(--amber-soft);color:var(--amber)}.st.closing{background-color:var(--purple-soft);color:var(--purple)}.st.won{background-color:var(--green-soft);color:var(--green)}.st.lost{color:var(--muted)}
     .warn{color:var(--amber);font-weight:600}.due{font-style:normal;color:var(--muted)}
     .acts{text-align:right}

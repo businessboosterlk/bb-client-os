@@ -18,6 +18,14 @@ export async function runSelftest(cast: CastService, data: DataService){
   /* the install icon is the app's face on a home screen: it must load, be square and
      not be some other system's icon smuggled in (this one arrived saying VIDEO) */
   ok('every declared app icon loads and is square', await Promise.all(['icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'icon-maskable-512.png'].map(src => new Promise<boolean>(res => { const i = new Image(); i.onload = () => res(i.naturalWidth === i.naturalHeight && i.naturalWidth >= 180); i.onerror = () => res(false); i.src = src; }))).then(r => r.every(Boolean)));
+  /* SELECT LAW: probe the rule itself, so the check cannot pass by finding no select on screen */
+  ok('selects draw their own chevron, never the browser arrow, at least 12px in from the edge', (() => {
+    const wrap = document.createElement('div'); wrap.className = 'field'; wrap.style.cssText = 'position:absolute;left:-9999px;top:0;width:240px';
+    const s = document.createElement('select'); s.innerHTML = '<option>September 2026</option>'; wrap.appendChild(s); document.body.appendChild(wrap);
+    const cs = getComputedStyle(s); const pos = cs.backgroundPositionX; const inset = parseFloat((pos.match(/(\d+(?:\.\d+)?)px/) || [])[1] || '0');
+    const fromRight = /right|100%/.test(pos);
+    const good = (cs.appearance === 'none' || (cs as any).webkitAppearance === 'none') && /svg/.test(cs.backgroundImage) && fromRight && inset >= 12 && parseFloat(cs.paddingRight) >= 36;
+    wrap.remove(); return good; })(), 'probe .field select');
   ok('viewport covers the notch', /viewport-fit=cover/.test(document.querySelector('meta[name=viewport]')?.getAttribute('content') || ''));
   ok('safe area variables in use', cs.getPropertyValue('--sat') !== '' && !!document.querySelector('.statusfill'));
   /* one colour at the top: inside the shell the glass topbar paints the inset and the
