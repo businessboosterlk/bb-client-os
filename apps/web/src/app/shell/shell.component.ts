@@ -29,15 +29,15 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
   template: `
     <div class="scrim" [class.on]="railOpen()" (click)="setRail(false)"></div>
     <aside class="rail" [class.open]="railOpen()" aria-label="Navigation">
-      <div class="r-brand">
-        <img src="assets/bb-logo.png" alt="Business Booster">
+      <div class="r-head">
+        <img class="r-mark" src="assets/bb-logo-600.png" alt="Business Booster" width="834" height="338">
         <span class="r-eyebrow">The Hub</span>
+        <div class="r-clock" aria-label="Time and date"><strong>{{ time() }}</strong><span>{{ date() }}</span></div>
+        <a class="r-client" routerLink="/start" (click)="setRail(false)" [attr.aria-label]="(cast.cast()?.name || '') + ', home'">
+          @if (cast.cast()?.brand?.logo) { <img [src]="cast.cast()!.brand.logo" alt=""> }
+          <strong>{{ cast.cast()?.name }}</strong>
+        </a>
       </div>
-      <div class="r-clock">{{ clock() }}</div>
-      <a class="r-client" routerLink="/start" (click)="setRail(false)">
-        @if (cast.cast()?.brand?.logo) { <img [src]="cast.cast()!.brand.logo" alt=""> }
-        <span><strong>{{ cast.cast()?.name }}</strong><em>Change system</em></span>
-      </a>
       @for (g of groups; track g.key; let last = $last) {
         <div class="grp" [class.off]="collapsed().has(g.key)">
           <button class="grp-h" type="button" (click)="toggle(g.key)" [attr.aria-expanded]="!collapsed().has(g.key)">
@@ -79,13 +79,18 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
     :host{display:block}
     .rail{position:fixed;top:0;left:0;bottom:0;width:var(--side-w);background:var(--sidebar);color:var(--sidebar-txt);z-index:85;
       display:flex;flex-direction:column;padding:calc(18px + var(--sat)) 12px calc(14px + var(--sab));overflow-y:auto;overscroll-behavior:contain;border-right:1px solid var(--sidebar-line)}
-    .r-brand{display:flex;flex-direction:column;gap:6px;padding:0 8px 14px}.r-brand img{height:22px;width:auto;align-self:flex-start;filter:brightness(0) invert(1);opacity:.9}
-    .r-eyebrow{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--sidebar-faint)}
-    .r-clock{font-size:12px;color:var(--sidebar-faint);padding:0 8px 14px;font-variant-numeric:tabular-nums}
-    .r-client{display:flex;align-items:center;gap:10px;padding:10px 8px;border-radius:10px;margin-bottom:8px;transition:background var(--dur) var(--ease)}
+    /* the head of the column: mark, name, time and whose Hub this is, all on the column's centre */
+    .r-head{display:flex;flex-direction:column;align-items:center;text-align:center;padding:6px 4px 14px;margin-bottom:10px;border-bottom:1px solid var(--sidebar-line)}
+    .r-mark{width:156px;max-width:82%;height:auto;display:block;opacity:.96}
+    /* letter-spacing leaves a gap after the last letter; the matching indent re-centres the line */
+    .r-eyebrow{margin-top:10px;font-size:10.5px;font-weight:700;letter-spacing:.34em;text-indent:.34em;text-transform:uppercase;color:var(--sidebar-faint)}
+    .r-clock{display:flex;flex-direction:column;align-items:center;gap:3px;margin:20px 0 18px}
+    .r-clock strong{font-size:30px;font-weight:600;letter-spacing:-.025em;line-height:1;color:#fff;font-variant-numeric:tabular-nums}
+    .r-clock span{font-size:12.5px;font-weight:500;color:var(--sidebar-txt)}
+    .r-client{display:inline-flex;align-items:center;justify-content:center;gap:9px;max-width:100%;min-height:40px;padding:6px 12px;border-radius:10px;transition:background var(--dur) var(--ease)}
     .r-client:hover{background:rgba(255,255,255,.06)}
-    .r-client img{width:30px;height:30px;border-radius:8px;background:#fff;padding:3px;object-fit:contain}
-    .r-client strong{display:block;color:#fff;font-size:14px;font-weight:600}.r-client em{display:block;font-style:normal;font-size:11px;color:var(--sidebar-faint)}
+    .r-client img{width:26px;height:26px;border-radius:7px;background:#fff;padding:2px;object-fit:contain;flex-shrink:0}
+    .r-client strong{color:#fff;font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .grp-h{display:flex;align-items:center;justify-content:space-between;width:100%;padding:8px 8px 6px;border:0;background:none;color:var(--sidebar-faint);font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border-radius:8px}
     .grp-h:hover{color:var(--sidebar-txt)}.grp-h .chev{transition:transform var(--dur) var(--ease);--ico:14px}
     .grp.off .grp-h .chev{transform:rotate(-90deg)}
@@ -143,7 +148,8 @@ export class ShellComponent implements OnInit, OnDestroy {
   }
   system = signal<'library' | 'sales'>('library');
   title = signal('');
-  clock = signal('');
+  time = signal('');
+  date = signal('');
   collapsed = signal(new Set<string>());
   private timer: any; private sub: any;
   groups: NavGroup[] = [
@@ -198,8 +204,9 @@ export class ShellComponent implements OnInit, OnDestroy {
   }
   ngOnDestroy(){ this.setRail(false); document.body.classList.remove('in-shell'); clearInterval(this.timer); this.sub?.unsubscribe(); }
   private readTitle(){ let r = this.route; while (r.firstChild) r = r.firstChild; this.title.set(r.snapshot.data['title'] || ''); this.activeUrl.set(this.router.url.split('?')[0]); }
-  private tick(){ const d = new Date(); const D = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    this.clock.set(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} · ${D[d.getDay()]} ${d.getDate()} ${M[d.getMonth()]}`); }
+  private tick(){ const d = new Date();
+    this.time.set(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`);
+    this.date.set(d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })); }
   toggle(k: string){ const s = new Set(this.collapsed()); s.has(k) ? s.delete(k) : s.add(k); this.collapsed.set(s); }
   out(){ this.session.logout(); this.router.navigate(['/login']); }
   @HostListener('document:keydown.escape') esc(){ this.setRail(false); }

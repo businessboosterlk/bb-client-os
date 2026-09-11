@@ -68,6 +68,9 @@ export async function runSelftest(cast: CastService, data: DataService){
       const b = document.body, had = b.classList.contains('sheet-open'), y = scrollY; b.classList.add('sheet-open'); const off = getComputedStyle(bar).pointerEvents === 'none';
       if (!had) b.classList.remove('sheet-open'); scrollTo(0, y); return off; })());
     ok('the page never becomes a stacking context that traps its drawers', (() => { const p = document.querySelector('.page'); if (!p) return false; const f = getComputedStyle(p).animationFillMode; return f !== 'both' && f !== 'forwards'; })());
+    ok('the column head is centred: mark, name, time and client share one axis', (() => { const r = document.querySelector('.rail')?.getBoundingClientRect(); if (!r || desk === false && getComputedStyle(document.querySelector('.rail')!).visibility === 'hidden') return true;
+      const mid = r.left + r.width / 2; return ['.r-mark', '.r-eyebrow', '.r-clock strong', '.r-client'].every(sel => { const e = document.querySelector(sel)?.getBoundingClientRect(); return !!e && e.width > 0 && Math.abs(e.left + e.width / 2 - mid) < 3; }); })());
+    ok('the time reads at a glance: 26px or larger', (() => { const e = document.querySelector('.r-clock strong'); return !!e && parseFloat(getComputedStyle(e).fontSize) >= 26 && /^\d{2}:\d{2}$/.test(e.textContent || ''); })());
     ok('tap targets in the rail and tab bar are 40px or taller', [...document.querySelectorAll('.rail nav a, .bm-btn')].filter(a => a.getBoundingClientRect().height > 0).every(a => a.getBoundingClientRect().height >= 40));
   } else {
     /* no shell on this screen: it must be the door or the launcher, and each has its own anatomy */
