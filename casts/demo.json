@@ -2,7 +2,6 @@
   "slug": "demo",
   "name": "Cinnamon & Co",
   "short": "Cinnamon",
-  "wa": "94766584993",
   "updated": "30 August 2026",
   "brand": {
     "hex": "#8a5a2b",
@@ -211,5 +210,8 @@
     "cinnamon",
     "cinnamon and co",
     "demo"
-  ]
+  ],
+  "bb": {
+    "wa": "94767412531"
+  }
 }
