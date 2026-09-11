@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Puts a client on the Hub, or updates one, through the API's BB door.
-     node scripts/onboard.mjs casts/clove-beach.json --group https://chat.whatsapp.com/XXXX
-     node scripts/onboard.mjs casts/clove-beach.json --rotate "Owner" "Front desk"
+     node scripts/onboard.mjs casts/private/clove-beach.json --group https://chat.whatsapp.com/XXXX
+     node scripts/onboard.mjs casts/private/clove-beach.json --rotate "Owner" "Front desk"
    Env: HUB_API=https://<railway address>  BB_ADMIN_SECRET=<secret>  (never in a committed file)
    A new client gets two seat codes, printed ONCE. An existing client keeps its codes unless
    --rotate is passed, so updating settings never locks a team out. --group sets the client's
@@ -12,7 +12,7 @@ const file = args.find(a => a.endsWith('.json'));
 const gi = args.indexOf('--group'); const group = gi >= 0 ? args[gi + 1] : undefined;
 const rotate = args.includes('--rotate');
 const labels = args.filter((a, i) => a !== file && a !== '--rotate' && a !== '--group' && i !== gi + 1);
-if (!file) { console.error('usage: node scripts/onboard.mjs casts/<slug>.json [--group <invite link>] [--rotate] [seat label] [seat label]'); process.exit(1); }
+if (!file) { console.error('usage: node scripts/onboard.mjs casts/private/<slug>.json [--group <invite link>] [--rotate] [seat label] [seat label]'); process.exit(1); }
 const api = process.env.HUB_API, secret = process.env.BB_ADMIN_SECRET;
 if (!api || !secret) { console.error('set HUB_API and BB_ADMIN_SECRET in the environment'); process.exit(1); }
 const cast = JSON.parse(await readFile(file, 'utf8'));

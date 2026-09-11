@@ -5,7 +5,8 @@ and **the Sales system** (enquiries, pipeline, customers, the thing they run the
 Built on the BB stack standard: Node and Next.js on the server, Angular on the front.
 
 ```
-casts/<slug>.json       the ONLY thing that differs between clients (brand, words, stages, library metadata)
+casts/<slug>.json       the demo cast (local, PIN protected), the only cast the static site serves
+casts/private/          server clients' casts, gitignored: onboarding input only, stored in the database
 apps/web                Angular 19 app: login, launcher, Library screens, Sales screens
 apps/api                Next.js API: /api/login, /api/<slug>/cast (signed in), /api/<slug>/<table> CRUD, memory or Supabase store
 scripts/check-casts.mjs refuses a cast that carries a lead, a customer, a phone list or a key

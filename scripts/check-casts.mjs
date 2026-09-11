@@ -7,6 +7,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const DIR = path.resolve(process.cwd(), 'casts');
+const PRIVATE = path.join(DIR, 'private');
 const FORBIDDEN_KEYS = ['leads', 'enquiryRows', 'customersRows', 'deals', 'contacts', 'pinHash', 'serviceRole', 'service_role', 'anonKey', 'apiKey', 'secret', 'token'];
 const REQUIRED = ['slug', 'name', 'bb', 'brand', 'words', 'stages', 'library', 'aliases', 'data'];
 let bad = 0, n = 0;
@@ -22,9 +23,13 @@ function walk(o, trail, hits){
     }
   }
 }
-for(const f of (await readdir(DIR)).filter(f => f.endsWith('.json'))){
+const files = [
+  ...(await readdir(DIR)).filter(f => f.endsWith('.json')).map(f => ({ f, dir: DIR, priv: false })),
+  ...(await readdir(PRIVATE).catch(() => [])).filter(f => f.endsWith('.json')).map(f => ({ f, dir: PRIVATE, priv: true }))
+];
+for(const { f, dir, priv } of files){
   n++;
-  const cast = JSON.parse(await readFile(path.join(DIR, f), 'utf8'));
+  const cast = JSON.parse(await readFile(path.join(dir, f), 'utf8'));
   const problems = [];
   for(const k of REQUIRED) if(!(k in cast)) problems.push('missing ' + k);
   if(cast.slug !== f.replace('.json', '')) problems.push('slug does not match file name');
@@ -44,8 +49,12 @@ for(const f of (await readdir(DIR)).filter(f => f.endsWith('.json'))){
   if(phones.length) problems.push('phone numbers in cast: ' + phones.join(', '));
   const links = (text.match(/https?:\/\/[^"\s]+/g) || []).filter(u => !u.startsWith('https://'));
   if(links.length) problems.push('non-https links: ' + links.join(', '));
-  if(problems.length){ bad++; console.log('FAIL ' + f + '\n  ' + problems.join('\n  ')); }
-  else console.log('ok   ' + f);
+  /* the repo is public: a server client's settings must live in casts/private, which git ignores */
+  if(cast.data?.mode === 'api' && !priv) problems.push('a server client in the public casts folder: move it to casts/private (gitignored)');
+  if(cast.data?.mode === 'local' && priv) problems.push('a local demo cast in casts/private: it belongs in casts/');
+  const label = (priv ? 'private/' : '') + f;
+  if(problems.length){ bad++; console.log('FAIL ' + label + '\n  ' + problems.join('\n  ')); }
+  else console.log('ok   ' + label);
 }
 console.log(bad ? `RESULT: ${bad} of ${n} casts FAIL` : `RESULT: ALL GREEN (${n} casts)`);
 process.exit(bad ? 1 : 0);

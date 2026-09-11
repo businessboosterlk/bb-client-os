@@ -5,3 +5,6 @@ apps/web/.angular/
 .env
 .env.local
 .DS_Store
+
+# server clients' settings: onboarding input only, stored in the database, never in a public repo
+casts/private/
