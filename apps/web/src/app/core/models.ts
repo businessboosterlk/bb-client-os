@@ -27,7 +27,9 @@ export interface LibMonth { id: string; label: string; videos: LibItem[]; posts:
 export interface Fact { k: string; v: string; g?: string; }
 
 export interface Cast {
-  slug: string; aliases?: string[]; name: string; short?: string; wa: string; updated?: string;
+  slug: string; aliases?: string[]; name: string; short?: string; updated?: string;
+  wa?: string;                          /* the client's own line, for reference only */
+  bb?: { wa?: string; group?: string }; /* who the WhatsApp button reaches: their group, else BB's line */
   brand: { hex: string; logo?: string };
   words: Record<string, string>;
   stages: StageDef[];

@@ -15,7 +15,7 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(async () => {
       const cast = inject(CastService), session = inject(SessionService), data = inject(DataService);
       await cast.loadConfig();
-      if (session.restore()) await data.init();
+      if (session.restore()) { await session.refresh(); await data.init(); }
     })
   ]
 };

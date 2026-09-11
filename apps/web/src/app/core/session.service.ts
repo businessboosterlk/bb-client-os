@@ -44,6 +44,17 @@ export class SessionService {
     const seat = cast.users?.[0]?.name || 'Owner';
     this.save({ token: '', slug: cast.slug, seat, cast }); return true;
   }
+  /* on every open: fetch this seat's settings and library fresh, so new work and a new
+     group link arrive without a new login. A seat the server no longer accepts goes to the door. */
+  async refresh(){
+    const api = this.castSvc.config().api; const c = this.castSvc.cast();
+    if (!api || !c || !this.token()) return;
+    try {
+      const r = await fetch(`${api}/api/${c.slug}/cast`, { headers: { Authorization: 'Bearer ' + this.token() } });
+      if (r.status === 401) { this.logout(); this.error.set('Your session ended. Sign in again.'); return; }
+      if (r.ok) this.save({ token: this.token(), slug: c.slug, seat: this.user(), cast: await r.json() });
+    } catch { /* offline: keep the saved copy */ }
+  }
   private save(s: Saved){ this.castSvc.use(s.cast); this.user.set(s.seat); this.token.set(s.token); try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} }
   logout() { this.user.set(''); this.token.set(''); this.castSvc.clear(); try { localStorage.removeItem(KEY); } catch {} }
   initial() { return (this.user() || '?').slice(0, 1).toUpperCase(); }

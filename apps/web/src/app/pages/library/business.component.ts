@@ -9,7 +9,7 @@ import { CastService } from '../../core/cast.service';
   template: `
     <div class="ph"><div><h1 class="t-h1">What we understand about {{ cast.cast()?.short || cast.cast()?.name }}</h1>
       <p>These facts guide every piece of work. @if (L().factsReviewed) { Reviewed {{ L().factsReviewed }}. }</p></div>
-      <div class="ph-right"><a class="btn ghost sm" [href]="fix()" target="_blank" rel="noreferrer">Update a detail</a></div></div>
+      @if (fix()) { <div class="ph-right"><a class="btn ghost sm" [href]="fix()" target="_blank" rel="noreferrer">Update a detail</a></div> }</div>
     @for (g of groups(); track g.name) {
       <div class="sec"><div class="sec-head"><h3>{{ g.name }}</h3><span>{{ g.facts.length }}</span></div>
         <div class="card">@for (f of g.facts; track f.k) { <div class="fact"><span>{{ f.k }}</span><strong>{{ f.v }}</strong></div> }</div></div>
@@ -22,5 +22,5 @@ export class BusinessComponent {
   cast = inject(CastService);
   L = computed(() => this.cast.cast()!.library);
   groups = computed(() => { const m = new Map<string, any[]>(); this.L().facts.forEach(f => { const g = f.g || 'Business'; if (!m.has(g)) m.set(g, []); m.get(g)!.push(f); }); return [...m].map(([name, facts]) => ({ name, facts })); });
-  fix = computed(() => `https://wa.me/${this.cast.cast()?.wa}?text=${encodeURIComponent(`Hello, this is ${this.cast.cast()?.name} [OS]. One of the business details needs updating: `)}`);
+  fix = computed(() => this.cast.whatsapp(`Hello, this is ${this.cast.cast()?.name} [Hub]. One of the business details needs updating: `));
 }

@@ -8,7 +8,7 @@ import path from 'node:path';
 
 const DIR = path.resolve(process.cwd(), 'casts');
 const FORBIDDEN_KEYS = ['leads', 'enquiryRows', 'customersRows', 'deals', 'contacts', 'pinHash', 'serviceRole', 'service_role', 'anonKey', 'apiKey', 'secret', 'token'];
-const REQUIRED = ['slug', 'name', 'wa', 'brand', 'words', 'stages', 'library', 'aliases', 'data'];
+const REQUIRED = ['slug', 'name', 'bb', 'brand', 'words', 'stages', 'library', 'aliases', 'data'];
 let bad = 0, n = 0;
 
 function walk(o, trail, hits){
@@ -29,13 +29,17 @@ for(const f of (await readdir(DIR)).filter(f => f.endsWith('.json'))){
   for(const k of REQUIRED) if(!(k in cast)) problems.push('missing ' + k);
   if(cast.slug !== f.replace('.json', '')) problems.push('slug does not match file name');
   if(!/^#[0-9a-f]{6}$/i.test(cast.brand?.hex || '')) problems.push('brand.hex is not a six digit hex');
-  if(!/^94\d{9}$/.test(cast.wa || '')) problems.push('wa is not a 94 number');
+  if(!/^94\d{9}$/.test(cast.bb?.wa || '')) problems.push('bb.wa (the Business Booster line this client messages) is not a 94 number');
+  if(cast.wa && !/^94\d{9}$/.test(cast.wa)) problems.push('wa (the client\'s own line) is not a 94 number');
+  if(cast.wa && cast.wa === cast.bb?.wa) problems.push('bb.wa equals the client\'s own line: the Message BB button would message the client');
+  /* a WhatsApp group invite is a key to a private group: never in a public file */
+  if(/chat\.whatsapp\.com/i.test(JSON.stringify(cast))) problems.push('a WhatsApp group invite link is in a committed cast: pass it to onboard.mjs --group instead');
   if(!['local','api'].includes(cast.data?.mode)) problems.push('data.mode must be local or api');
   if(cast.pin && cast.data?.mode === 'api') problems.push('an api cast must not carry a pin: seats live on the server');
   const hits = []; walk(cast, 'cast', hits);
   if(hits.length) problems.push('forbidden keys: ' + hits.join(', '));
   /* a phone number anywhere outside the client's own wa is a leak */
-  const text = JSON.stringify({ ...cast, wa: '' });
+  const text = JSON.stringify({ ...cast, wa: '', bb: { ...(cast.bb || {}), wa: '' } });
   const phones = (text.match(/\b0?7\d[\d\s-]{7,}\b/g) || []).filter(p => p.replace(/\D/g, '').length >= 9);
   if(phones.length) problems.push('phone numbers in cast: ' + phones.join(', '));
   const links = (text.match(/https?:\/\/[^"\s]+/g) || []).filter(u => !u.startsWith('https://'));

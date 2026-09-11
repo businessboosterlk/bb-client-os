@@ -4,18 +4,18 @@ import { Cast } from './models';
 /* The cast is the only thing that differs between clients. In the Hub it arrives with
    the login (the API sends it beside the session token). The static demo still loads
    casts/<slug>.json. Every colour on the page derives from its ONE brand hex. */
-export interface HubConfig { api: string; }
+export interface HubConfig { api: string; bbWa?: string; }
 @Injectable({ providedIn: 'root' })
 export class CastService {
   readonly cast = signal<Cast | null>(null);
-  readonly config = signal<HubConfig>({ api: '' });
+  readonly config = signal<HubConfig>({ api: '', bbWa: '94767412531' });
   readonly slug = computed(() => this.cast()?.slug || '');
   readonly words = computed(() => this.cast()?.words || {});
   readonly apiMode = computed(() => !!this.config().api);
 
   async loadConfig(){
-    try { const r = await fetch('config.json', { cache: 'no-cache' }); if (r.ok) this.config.set({ api: '', ...(await r.json()) }); } catch {}
-    const q = new URLSearchParams(location.search).get('api'); if (q && /^https?:\/\//.test(q)) this.config.set({ api: q.replace(/\/$/, '') });
+    try { const r = await fetch('config.json', { cache: 'no-cache' }); if (r.ok) this.config.set({ api: '', bbWa: '94767412531', ...(await r.json()) }); } catch {}
+    const q = new URLSearchParams(location.search).get('api'); if (q && /^https?:\/\//.test(q)) this.config.set({ ...this.config(), api: q.replace(/\/$/, '') });
   }
   /* static demo path: the cast file named in the address, or the last one used */
   async loadStatic(slug?: string): Promise<Cast | null> {
@@ -49,6 +49,15 @@ export class CastService {
       m.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(man));
     }
   }
+  /* the client's group with BB when one is set, else BB's own line with a first line
+     written for them. Never the client's own number. */
+  whatsapp(text: string): string {
+    const c = this.cast(); if (!c) return '';
+    if (c.bb?.group && /^https:\/\/chat\.whatsapp\.com\//.test(c.bb.group)) return c.bb.group;
+    const n = c.bb?.wa || this.config().bbWa; if (!n) return '';
+    return `https://wa.me/${n}?text=${encodeURIComponent(text)}`;
+  }
+  isGroup(){ return !!this.cast()?.bb?.group; }
   word(k: string, fallback: string) { return this.words()[k] || fallback; }
   money(n: number) { const cur = this.word('currency', 'LKR'); return n ? `${cur} ${Math.round(n).toLocaleString('en-GB')}` : ''; }
   moneyShort(n: number) { const cur = this.word('currency', 'LKR'); if (!n) return ''; if (n >= 1e6) return `${cur} ${(n / 1e6).toFixed(n % 1e6 ? 1 : 0)}M`; if (n >= 1e3) return `${cur} ${Math.round(n / 1e3)}K`; return `${cur} ${n}`; }

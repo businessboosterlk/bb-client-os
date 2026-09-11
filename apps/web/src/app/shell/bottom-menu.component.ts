@@ -40,7 +40,10 @@ export interface MenuTab { path: string; label: string; icon: string; badge?: ()
     </div>`,
   styles: [`
     :host{display:block}
-    .bm{position:fixed;left:50%;bottom:calc(14px + var(--sab));transform:translateX(-50%);z-index:40;display:flex;flex-direction:column;align-items:center}
+    .bm{position:fixed;left:50%;bottom:calc(14px + var(--sab));transform:translateX(-50%);z-index:40;display:flex;flex-direction:column;align-items:center;
+      transition:opacity 180ms var(--ease),translate 180ms var(--ease)}
+    /* a sheet or the rail owns the screen: the bar steps down and out of its way */
+    :host-context(body.sheet-open) .bm{opacity:0;translate:0 18px;pointer-events:none}
     .bm-bar{display:flex;align-items:center;gap:4px;padding:4px;border-radius:18px;border:1px solid var(--line);
       background:var(--pill);border-color:var(--pill-line);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
       box-shadow:var(--sh-lg)}

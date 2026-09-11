@@ -27,14 +27,14 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
   standalone: true,
   imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, BottomMenuComponent],
   template: `
-    <div class="scrim" [class.on]="railOpen()" (click)="railOpen.set(false)"></div>
+    <div class="scrim" [class.on]="railOpen()" (click)="setRail(false)"></div>
     <aside class="rail" [class.open]="railOpen()" aria-label="Navigation">
       <div class="r-brand">
         <img src="assets/bb-logo.png" alt="Business Booster">
         <span class="r-eyebrow">The Hub</span>
       </div>
       <div class="r-clock">{{ clock() }}</div>
-      <a class="r-client" routerLink="/start" (click)="railOpen.set(false)">
+      <a class="r-client" routerLink="/start" (click)="setRail(false)">
         @if (cast.cast()?.brand?.logo) { <img [src]="cast.cast()!.brand.logo" alt=""> }
         <span><strong>{{ cast.cast()?.name }}</strong><em>Change system</em></span>
       </a>
@@ -45,7 +45,7 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
           </button>
           <nav><div>
             @for (it of g.items; track it.path) {
-              <a [routerLink]="'/' + g.key + '/' + it.path" routerLinkActive="on" (click)="railOpen.set(false)">
+              <a [routerLink]="'/' + g.key + '/' + it.path" routerLinkActive="on" (click)="setRail(false)">
                 <bb-icon [name]="it.icon"/>{{ it.label }}
                 @if (it.badge && it.badge() > 0) { <span class="nb">{{ it.badge() }}</span> }
               </a>
@@ -64,12 +64,12 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
 
     <div class="main">
       <header class="topbar">
-        <button class="x hamb" type="button" (click)="railOpen.set(true)" aria-label="Menu"><bb-icon name="menu"/></button>
+        <button class="x hamb" type="button" (click)="setRail(true)" aria-label="Menu"><bb-icon name="menu"/></button>
         <div class="tt"><strong>{{ title() }}</strong><span>{{ system() === 'library' ? 'Your library' : 'Your sales' }} · {{ cast.cast()?.name }}</span>
           @if (data.pending() > 0) { <em class="off">{{ data.pending() }} waiting to sync</em> }</div>
         <div class="tr">
           <button class="x theme" type="button" (click)="theme.toggle()" [attr.aria-label]="theme.dark() ? 'Day mode' : 'Night mode'" [attr.aria-pressed]="theme.dark()"><bb-icon [name]="theme.dark() ? 'sun' : 'moon'"/></button>
-          <a class="btn wa sm" [href]="wa()" target="_blank" rel="noreferrer"><bb-icon name="wa"/><span class="lbl">Message BB</span></a>
+          @if (wa()) { <a class="btn wa sm" [href]="wa()" target="_blank" rel="noreferrer" [attr.aria-label]="waLabel()"><bb-icon name="wa"/><span class="lbl">{{ waLabel() }}</span></a> }
         </div>
       </header>
       <main class="page" [class.enter]="entering()"><router-outlet/></main>
@@ -113,7 +113,7 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
     .tt .off{display:inline-block;font-style:normal;font-size:10.5px;font-weight:600;color:var(--amber);background:var(--amber-soft);padding:1px 7px;border-radius:999px;margin-top:2px}
     .tr{display:flex;gap:6px;align-items:center}.theme{color:var(--muted)}.theme:hover{color:var(--ink)}
     .page{flex:1}
-    .page.enter{animation:pageIn 260ms var(--ease) both}
+    .page.enter{animation:pageIn 260ms var(--ease) backwards}
     @keyframes pageIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
     @media (prefers-reduced-motion:reduce){.page.enter{animation:none}}
     .tabs{display:none}
@@ -132,6 +132,15 @@ export class ShellComponent implements OnInit, OnDestroy {
   cast = inject(CastService); session = inject(SessionService); data = inject(DataService); theme = inject(ThemeService);
   private route = inject(ActivatedRoute); private router = inject(Router);
   railOpen = signal(false);
+  private railLockY = 0;
+  setRail(open: boolean){
+    if (open === this.railOpen()) return;
+    this.railOpen.set(open);
+    if (innerWidth >= 1020) return;
+    const b = document.body;
+    if (open) { this.railLockY = scrollY; b.style.top = `-${this.railLockY}px`; b.classList.add('sheet-open', 'rail-lock'); }
+    else if (b.classList.contains('rail-lock')) { b.classList.remove('sheet-open', 'rail-lock'); b.style.top = ''; scrollTo(0, this.railLockY); }
+  }
   system = signal<'library' | 'sales'>('library');
   title = signal('');
   clock = signal('');
@@ -157,9 +166,9 @@ export class ShellComponent implements OnInit, OnDestroy {
     const months = (m: 'videos' | 'posts'): MenuAction[] => (c?.library.months || []).filter(x => x[m].length).slice(0, 6)
       .map(x => ({ label: x.label + ' ' + x.id.slice(0, 4), icon: m === 'videos' ? 'video' : 'post', link: '/library/' + m, params: { m: x.id } }));
     const menus: Record<string, MenuAction[]> = {
-      month: [ { label: 'Message Business Booster', icon: 'wa', href: this.wa() }, { label: 'Your sales', icon: 'pipe', link: '/sales' } ],
+      month: [ ...(this.wa() ? [{ label: this.cast.isGroup() ? 'Our group with Business Booster' : 'Message Business Booster', icon: 'wa', href: this.wa() }] : []), { label: 'Your sales', icon: 'pipe', link: '/sales' } ],
       videos: months('videos'), posts: months('posts'), docs: [],
-      business: [ { label: 'Update a detail', icon: 'edit', href: `https://wa.me/${c?.wa}?text=${encodeURIComponent(`Hello, this is ${c?.name} [OS]. One of the business details needs updating: `)}` } ],
+      business: [ { label: 'Update a detail', icon: 'edit', href: this.cast.whatsapp(`Hello, this is ${c?.name} [Hub]. One of the business details needs updating: `) } ],
       dashboard: [ { label: 'New ' + this.cast.word('enquiry', 'enquiry').toLowerCase(), icon: 'plus', link: '/sales/enquiries', params: { add: 1 } }, { label: 'Your library', icon: 'video', link: '/library' }, { label: 'Sign out', icon: 'out', run: () => this.out() } ],
       enquiries: [ { label: 'New ' + this.cast.word('enquiry', 'enquiry').toLowerCase(), icon: 'plus', link: '/sales/enquiries', params: { add: 1 } }, { label: 'Waiting', icon: 'inbox', link: '/sales/enquiries', params: { f: 'new' } }, { label: 'Everything', icon: 'list', link: '/sales/enquiries', params: { f: 'all' } } ],
       pipeline: [ { label: 'Board', icon: 'board', link: '/sales/pipeline', params: { view: 'board' } }, { label: 'List', icon: 'list', link: '/sales/pipeline', params: { view: 'list' } }, { label: 'New deal', icon: 'plus', link: '/sales/pipeline', params: { add: 1 } } ],
@@ -169,7 +178,8 @@ export class ShellComponent implements OnInit, OnDestroy {
     return this.groups.find(g => g.key === sys)!.items.map(it => ({ ...it, path: '/' + sys + '/' + it.path, menu: menus[it.path] || [] }));
   });
   role = computed(() => this.cast.cast()?.users.find(u => u.name === this.session.user())?.role || '');
-  wa = computed(() => `https://wa.me/${this.cast.cast()?.wa}?text=${encodeURIComponent(`Hello, this is ${this.session.user()} from ${this.cast.cast()?.name} [OS].`)}`);
+  wa = computed(() => this.cast.whatsapp(`Hello, this is ${this.session.user()} from ${this.cast.cast()?.name} [Hub].`));
+  waLabel = computed(() => this.cast.isGroup() ? 'Our group' : 'Message BB');
 
   ngOnInit(){
     document.body.classList.add('in-shell'); setTop(pageColour());
@@ -186,11 +196,11 @@ export class ShellComponent implements OnInit, OnDestroy {
     });
     this.tick(); this.timer = setInterval(() => this.tick(), 15000);
   }
-  ngOnDestroy(){ document.body.classList.remove('in-shell'); clearInterval(this.timer); this.sub?.unsubscribe(); }
+  ngOnDestroy(){ this.setRail(false); document.body.classList.remove('in-shell'); clearInterval(this.timer); this.sub?.unsubscribe(); }
   private readTitle(){ let r = this.route; while (r.firstChild) r = r.firstChild; this.title.set(r.snapshot.data['title'] || ''); this.activeUrl.set(this.router.url.split('?')[0]); }
   private tick(){ const d = new Date(); const D = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     this.clock.set(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} · ${D[d.getDay()]} ${d.getDate()} ${M[d.getMonth()]}`); }
   toggle(k: string){ const s = new Set(this.collapsed()); s.has(k) ? s.delete(k) : s.add(k); this.collapsed.set(s); }
   out(){ this.session.logout(); this.router.navigate(['/login']); }
-  @HostListener('document:keydown.escape') esc(){ this.railOpen.set(false); }
+  @HostListener('document:keydown.escape') esc(){ this.setRail(false); }
 }

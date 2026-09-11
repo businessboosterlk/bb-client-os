@@ -7,7 +7,7 @@ Built on the BB stack standard: Node and Next.js on the server, Angular on the f
 ```
 casts/<slug>.json       the ONLY thing that differs between clients (brand, words, stages, library metadata)
 apps/web                Angular 19 app: login, launcher, Library screens, Sales screens
-apps/api                Next.js API: /api/cast/<slug>, /api/<slug>/<table> CRUD, memory or Supabase store
+apps/api                Next.js API: /api/login, /api/<slug>/cast (signed in), /api/<slug>/<table> CRUD, memory or Supabase store
 scripts/check-casts.mjs refuses a cast that carries a lead, a customer, a phone list or a key
 scripts/sync-casts.mjs  copies casts into the static build
 ```

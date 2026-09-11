@@ -11,7 +11,7 @@ export async function runSelftest(cast: CastService, data: DataService){
   const c = cast.cast();
   const cs = getComputedStyle(document.documentElement);
   if (c) {
-  ok('cast loaded with slug, name, wa and a brand hex', !!c.slug && !!c.name && /^94\d{9}$/.test(c.wa) && /^#[0-9a-f]{6}$/i.test(c.brand.hex));
+  ok('cast loaded with slug, name, a Business Booster line and a brand hex', !!c.slug && !!c.name && /^94\d{9}$/.test(c.bb?.wa || cast.config().bbWa || '') && /^#[0-9a-f]{6}$/i.test(c.brand.hex));
   ok('palette derived from the one brand hex', cs.getPropertyValue('--brand').trim().toLowerCase() === c.brand.hex.toLowerCase() && cs.getPropertyValue('--brand-soft').trim() !== '');
   ok('manifest named for this client', ((document.getElementById('manifest') as HTMLLinkElement)?.href || '').includes(encodeURIComponent(c.name.split(' ')[0])));
   }
@@ -59,6 +59,15 @@ export async function runSelftest(cast: CastService, data: DataService){
       const shadowFree = cs.overflow !== 'hidden' && cs.boxShadow !== 'none';
       return subOk && cardOk && noLayoutAnim && shadowFree && Math.abs(o[0] - r.width / 2) < 1 && Math.abs(o[1] - r.height) < 1; })(),
       desk ? 'desk' : (document.querySelector('.bm-sub') ? 'sub: ' + getComputedStyle(document.querySelector('.bm-sub')!).transitionProperty + ' · card: ' + getComputedStyle(document.querySelector('.bm-card')!).transitionProperty : 'no panel'));
+    ok('the WhatsApp button reaches Business Booster, never the client\'s own line', (() => {
+      const a = document.querySelector('.topbar a.btn.wa') as HTMLAnchorElement | null; if (!c) return false;
+      if (!a) return !c.bb?.wa && !c.bb?.group && !cast.config().bbWa;
+      const h = a.href; return (!c.wa || !h.includes('wa.me/' + c.wa)) && (/chat\.whatsapp\.com\//.test(h) || h.includes('wa.me/' + (c.bb?.wa || cast.config().bbWa))); })(),
+      (document.querySelector('.topbar a.btn.wa') as HTMLAnchorElement | null)?.href.replace(/\?.*/, '') || 'no button');
+    ok('an open sheet has nothing floating on top of it', (() => { if (desk) return true; const bar = document.querySelector('.bm') as HTMLElement | null; if (!bar) return false;
+      const b = document.body, had = b.classList.contains('sheet-open'), y = scrollY; b.classList.add('sheet-open'); const off = getComputedStyle(bar).pointerEvents === 'none';
+      if (!had) b.classList.remove('sheet-open'); scrollTo(0, y); return off; })());
+    ok('the page never becomes a stacking context that traps its drawers', (() => { const p = document.querySelector('.page'); if (!p) return false; const f = getComputedStyle(p).animationFillMode; return f !== 'both' && f !== 'forwards'; })());
     ok('tap targets in the rail and tab bar are 40px or taller', [...document.querySelectorAll('.rail nav a, .bm-btn')].filter(a => a.getBoundingClientRect().height > 0).every(a => a.getBoundingClientRect().height >= 40));
   } else {
     /* no shell on this screen: it must be the door or the launcher, and each has its own anatomy */

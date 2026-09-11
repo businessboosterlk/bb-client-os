@@ -34,7 +34,7 @@ const GROUND = '#08080a';
         </form>
         @if (!cast.apiMode()) { <div class="demo">Demo: <b>cinnamon.lk</b> with code <b>1111</b></div> }
       </div>
-      <div class="foot">Lost your code? Message Business Booster and a new one is issued in a minute.</div>
+      <div class="foot">Lost your code? <a [href]="lost" target="_blank" rel="noreferrer">Message Business Booster</a> and a new one is issued in a minute.</div>
     </div>`,
   styles: [`
     :host{display:block}
@@ -70,6 +70,8 @@ const GROUND = '#08080a';
     .err.on{opacity:1}
     .demo{margin-top:16px;font-size:12px;color:#63666f}.demo b{color:#a2a5ad;font-weight:600}
     .foot{color:#63666f;font-size:12px;text-align:center;max-width:360px;line-height:1.55}
+    .foot a{color:#a2a5ad;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.25)}
+    .foot a:hover{color:#f4f4f6}
     @media (max-width:480px){.card{padding:42px 26px 28px}.mark{width:206px}}
     @media (prefers-reduced-motion:reduce){.enter,.big{transition:none}}`]
 })
@@ -77,6 +79,7 @@ export class LoginComponent implements OnDestroy {
   cast = inject(CastService); session = inject(SessionService); data = inject(DataService);
   theme = inject(ThemeService); private router = inject(Router);
   business = ''; code = ''; busy = signal(false);
+  get lost(){ return `https://wa.me/${this.cast.config().bbWa || '94767412531'}?text=${encodeURIComponent('Hello, I need a new code for The Hub.')}`; }
   today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   constructor(){
     document.body.classList.add('on-door');
