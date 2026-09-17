@@ -40,8 +40,10 @@ const SEED = JSON.stringify({
   tasks: [{ id: 't1', text: 'Call back', due: ago(1).slice(0, 10), done: false, createdAt: ago(2), updatedAt: ago(2) }] });
 /* the static demo door: business name and the cast PIN */
 const signIn = async p => {
-  await p.goto(BASE + '?c=demo#/login'); await p.waitForTimeout(1200);
-  await p.fill('#biz', 'demo'); await p.fill('#pin', '1111'); await p.click('button[type=submit]'); await p.waitForTimeout(1500);
+  /* wait on the page, never on a timer: over the network a fixed wait let one run read an unsigned door */
+  await p.goto(BASE + '?c=demo#/login'); await p.waitForSelector('#biz');
+  await p.fill('#biz', 'demo'); await p.fill('#pin', '1111'); await p.click('button[type=submit]');
+  await p.waitForFunction(() => !location.hash.startsWith('#/login'), null, { timeout: 20000 });
 };
 /* what is meant to be centred, screen by screen */
 const plan = [
@@ -69,7 +71,7 @@ for (const [label, vp] of [['phone 390 @3x', { viewport: { width: 390, height: 8
     await p.addInitScript(([t, seed]) => { try { localStorage.setItem('hub_theme', t); localStorage.setItem('bbos_demo', seed); } catch {} }, [theme, SEED]);
     await signIn(p);
     for (const [hash, checks] of plan) {
-      await p.goto(BASE + '?c=demo#' + hash); await p.evaluate(() => document.fonts.ready); await p.waitForTimeout(1500);
+      await p.goto(BASE + '?c=demo#' + hash); await p.waitForSelector('.topbar'); await p.evaluate(() => document.fonts.ready); await p.waitForTimeout(1500);
       const phone = label.startsWith('phone');
       const run = checks.filter(c => phone ? c.phone !== false : c.desk !== false);
       total += run.length;
