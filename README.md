@@ -25,6 +25,28 @@ npm run check        # stack standard + cast guard
 
 Add `?selftest` to any page to run the harness in the browser (prints one line per check).
 
+## Pixel precision
+
+Every glyph meant to sit in the centre of its shape is measured by its ink, not by its CSS box.
+
+```bash
+node scripts/icon-centre.mjs --check     # every icon drawn on the centre of its 24 unit frame
+node scripts/icon-centre.mjs             # rewrite the OFFSETS table after adding or editing an icon
+node scripts/ui-precision.mjs http://localhost:8772/   # serve a build first; exits 1 on any miss
+```
+
+The runner reads the rail badges, the avatar, the board count pills, the Board and List switch,
+the buttons that lead with an icon, the topbar icons and the phone tab bar, in dark and light, at
+390px 3x and 1440px 2x. Shapes and icons within 0.5px, text within 0.5px plus one device pixel.
+The measuring lives in `~/bb-systems/qa/optical.mjs`, one copy for every BB system.
+
+Two rules the readings forced:
+
+- A button that leads with an icon wraps its label in a `<span>`. CSS cannot see a bare text node,
+  so without the span the icon counts as the only child and the optical pull never applies.
+- The topbar hairline is an inset shadow, not a border. A border left 55px inside the 56px bar and
+  every topbar icon snapped half a pixel low.
+
 ## Data modes
 
 A cast's `data.mode` decides where rows live:

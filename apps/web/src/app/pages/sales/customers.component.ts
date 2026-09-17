@@ -16,7 +16,7 @@ import { IconComponent } from '../../ui/icon.component';
   imports: [FormsModule, DrawerComponent, IconComponent],
   template: `
     <div class="ph"><div><h1 class="t-h1">{{ cast.word('customers','Customers') }}</h1><p>People who have bought from you. A won deal lands here on its own.</p></div>
-      <div class="ph-right"><button class="btn" type="button" (click)="openAdd()"><bb-icon name="plus"/>New {{ cast.word('customer','customer').toLowerCase() }}</button></div></div>
+      <div class="ph-right"><button class="btn" type="button" (click)="openAdd()"><bb-icon name="plus"/><span>New {{ cast.word('customer','customer').toLowerCase() }}</span></button></div></div>
     <div class="kpi">
       <div class="card"><div class="k-label">{{ cast.word('customers','Customers') }}</div><div class="k-val">{{ data.customers().length }}</div><div class="k-sub">on the books</div></div>
       <div class="card"><div class="k-label">Lifetime value</div><div class="k-val up">{{ cast.moneyShort(ltv()) || '0' }}</div><div class="k-sub">all time</div></div>
@@ -74,8 +74,8 @@ import { IconComponent } from '../../ui/icon.component';
         </div>
       }
         <div foot>@if (sel(); as c) {
-          @if (waLink(c.phone, c.name); as w) { <a class="btn wa" [href]="w" target="_blank" rel="noreferrer" (click)="touch(c)"><bb-icon name="wa"/>WhatsApp</a> }
-          <button class="btn ghost" type="button" (click)="touch(c)"><bb-icon name="phone"/>Spoke today</button>
+          @if (waLink(c.phone, c.name); as w) { <a class="btn wa" [href]="w" target="_blank" rel="noreferrer" (click)="touch(c)"><bb-icon name="wa"/><span>WhatsApp</span></a> }
+          <button class="btn ghost" type="button" (click)="touch(c)"><bb-icon name="phone"/><span>Spoke today</span></button>
           <button class="btn danger sm" type="button" style="margin-left:auto" (click)="remove(c)"><bb-icon name="trash"/></button>
         }</div>
     </bb-drawer>`,

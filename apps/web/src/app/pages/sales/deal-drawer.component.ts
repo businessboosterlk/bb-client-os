@@ -25,9 +25,9 @@ import { IconComponent } from '../../ui/icon.component';
           <p class="t-small">{{ line(d.phone, d.wants) || 'No details yet' }}</p>
         </div>
         <div class="acts">
-          @if (wa(d)) { <a class="btn wa sm" [href]="wa(d)" target="_blank" rel="noreferrer" (click)="log(d,'message','WhatsApp sent')"><bb-icon name="wa"/>WhatsApp</a> }
-          <button class="btn ghost sm" type="button" (click)="log(d,'call','Called them')"><bb-icon name="phone"/>Called</button>
-          <button class="btn ghost sm" type="button" (click)="log(d,'meeting','Met them')"><bb-icon name="meet"/>Met</button>
+          @if (wa(d)) { <a class="btn wa sm" [href]="wa(d)" target="_blank" rel="noreferrer" (click)="log(d,'message','WhatsApp sent')"><bb-icon name="wa"/><span>WhatsApp</span></a> }
+          <button class="btn ghost sm" type="button" (click)="log(d,'call','Called them')"><bb-icon name="phone"/><span>Called</span></button>
+          <button class="btn ghost sm" type="button" (click)="log(d,'meeting','Met them')"><bb-icon name="meet"/><span>Met</span></button>
         </div>
         @if (open(d)) {
           <div class="sec"><div class="sec-head"><h3>Stage</h3><span>Tap to move</span></div>
@@ -59,7 +59,7 @@ import { IconComponent } from '../../ui/icon.component';
       }
       <div foot>@if (deal; as d) {
           @if (open(d)) {
-            <button class="btn" type="button" (click)="win(d)"><bb-icon name="check"/>Mark won</button>
+            <button class="btn" type="button" (click)="win(d)"><bb-icon name="check"/><span>Mark won</span></button>
             <button class="btn ghost" type="button" (click)="lostAsk.set(!lostAsk())">Mark lost</button>
           } @else {
             <button class="btn ghost" type="button" (click)="move(d, 'talking')">Reopen</button>

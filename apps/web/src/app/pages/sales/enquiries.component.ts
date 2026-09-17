@@ -16,7 +16,7 @@ import { IconComponent } from '../../ui/icon.component';
   imports: [FormsModule, DrawerComponent, IconComponent],
   template: `
     <div class="ph"><div><h1 class="t-h1">{{ cast.word('enquiries','Enquiries') }}</h1><p>Everyone who has asked. Start one and it moves to your pipeline.</p></div>
-      <div class="ph-right"><button class="btn" type="button" (click)="openAdd()"><bb-icon name="plus"/>New {{ cast.word('enquiry','enquiry').toLowerCase() }}</button></div></div>
+      <div class="ph-right"><button class="btn" type="button" (click)="openAdd()"><bb-icon name="plus"/><span>New {{ cast.word('enquiry','enquiry').toLowerCase() }}</span></button></div></div>
 
     <div class="kpi">
       <div class="card"><div class="k-label">Waiting</div><div class="k-val">{{ data.waiting().length }}</div><div class="k-sub">to answer</div></div>
@@ -89,8 +89,8 @@ import { IconComponent } from '../../ui/icon.component';
         @if (e.dealId) { <p class="t-small" style="margin-top:14px">This one is in your pipeline. <a class="lnk" (click)="goDeal(e)">Open the deal</a></p> }
       }
         <div foot>@if (sel(); as e) {
-          @if (e.status === 'new') { <button class="btn" type="button" (click)="start(e)"><bb-icon name="pipe"/>Start working it</button> }
-          @if (waLink(e.phone, e.name); as w) { <a class="btn wa" [href]="w" target="_blank" rel="noreferrer" (click)="touch(e)"><bb-icon name="wa"/>WhatsApp</a> }
+          @if (e.status === 'new') { <button class="btn" type="button" (click)="start(e)"><bb-icon name="pipe"/><span>Start working it</span></button> }
+          @if (waLink(e.phone, e.name); as w) { <a class="btn wa" [href]="w" target="_blank" rel="noreferrer" (click)="touch(e)"><bb-icon name="wa"/><span>WhatsApp</span></a> }
           @if (e.status === 'new') { <button class="btn ghost" type="button" (click)="patch(e, { status: 'closed' })">Not a fit</button> }
           <button class="btn danger sm" type="button" style="margin-left:auto" (click)="remove(e)"><bb-icon name="trash"/></button>
         }</div>

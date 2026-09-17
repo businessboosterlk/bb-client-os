@@ -95,6 +95,17 @@ html[data-theme="light"] .bb-mark{filter:invert(1)}
 .btn.wa{background:#008069;color:#fff}
 .btn.wa svg{fill:currentColor;stroke:none}
 .btn:disabled{opacity:.5;cursor:default}
+/* OPTICAL: every icon is drawn inside a 24 unit frame with empty space round it, so an icon that
+   leads a word leaves more air on the left than the word leaves on the right. Pull the icon in by
+   that air. Cast from the Workshop OS and measured in the Hub by scripts/ui-precision.mjs, 17 Sep 2026. */
+.btn > bb-icon:first-child:not(:only-child){margin-left:-3px}
+.btn.sm > bb-icon:first-child:not(:only-child){margin-left:-3.5px}
+.seg button > bb-icon:first-child{margin-left:-1px}
+/* the WhatsApp mark fills its whole frame, so it has no air to give back */
+.btn.wa > bb-icon:first-child:not(:only-child){margin-left:0}
+/* OPTICAL: text lands on whole CSS pixels, so a correction smaller than half a pixel does nothing.
+   Inter's capitals sit 0.05em above the middle of their line box: pills carrying text take 0.05em
+   more on top and 0.05em less below (the rail badge), or a whole pixel (the board count pill) */
 
 /* pills and badges, sentence case */
 .pill{display:inline-flex;align-items:center;gap:6px;min-height:24px;padding:0 9px;border-radius:999px;font-size:11.5px;font-weight:600;

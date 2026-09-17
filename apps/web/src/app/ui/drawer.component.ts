@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, HostListener, effect, signal } from '@angular/core';
+import { Component, Input, Output, EventEmitter, HostListener, OnDestroy } from '@angular/core';
 import { IconComponent } from './icon.component';
 
 /* The one overlay. It locks the page behind it the iOS way (pin the body at its
@@ -19,7 +19,7 @@ import { IconComponent } from './icon.component';
       <div class="d-foot" [hidden]="!foot"><ng-content select="[foot]"/></div>
     </aside>`
 })
-export class DrawerComponent {
+export class DrawerComponent implements OnDestroy {
   @Input() title = '';
   @Input() foot = true;
   @Input() set open(v: boolean) { if (v !== this._open) { this._open = v; v ? this.lock() : this.unlock(); } }
@@ -31,6 +31,14 @@ export class DrawerComponent {
   private closing = false;
 
   close() { if (!this._open) return; this._open = false; this.unlock(); this.closed.emit(); }
+  /* a sheet whose screen is left while it is open (a button inside it navigates) must hand the page
+     back. Found 17 Sep 2026 in the Workshop OS: Make a quote from an enquiry sheet left the body pinned,
+     so the next screen could not scroll on a phone. Ported to the Hub the same day. No history.back
+     here: the router has already moved on. */
+  ngOnDestroy() {
+    if (!this._open) return; this._open = false;
+    document.body.classList.remove('sheet-open'); document.body.style.top = '';
+  }
   @HostListener('document:keydown.escape') onEsc() { this.close(); }
   @HostListener('window:popstate') onPop() { if (this._open && !this.closing) { this.pushed = false; this.close(); } }
   private lock() {

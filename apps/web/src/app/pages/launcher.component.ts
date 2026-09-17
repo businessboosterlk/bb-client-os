@@ -20,7 +20,7 @@ import { ThemeService } from '../core/theme.service';
           <h1 class="t-h1">Where to?</h1>
         </div>
         <div style="display:flex;gap:8px"><button class="btn ghost sm icon" type="button" (click)="theme.toggle()" [attr.aria-label]="theme.dark() ? 'Day mode' : 'Night mode'"><bb-icon [name]="theme.dark() ? 'sun' : 'moon'"/></button>
-        <button class="btn ghost sm" type="button" (click)="out()"><bb-icon name="out"/>Sign out</button></div>
+        <button class="btn ghost sm" type="button" (click)="out()"><bb-icon name="out"/><span>Sign out</span></button></div>
       </header>
       <div class="doors">
         <a class="door" routerLink="/library">

@@ -103,7 +103,7 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
     nav a.on{background:rgba(255,255,255,.08);color:#fff;font-weight:600}
     nav a.on::before{content:"";position:absolute;left:-12px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--brand)}
     nav a bb-icon{--ico:17px;opacity:.85}nav a.on bb-icon{opacity:1;color:var(--brand)}
-    .nb{margin-left:auto;font-size:11px;font-weight:700;background:var(--brand);color:var(--on-accent);padding:1px 7px;border-radius:999px}
+    .nb{margin-left:auto;font-size:11px;font-weight:700;background:var(--brand);color:var(--on-accent);padding:calc(1px + .05em) 7px calc(1px - .05em);border-radius:999px}
     .div{border:0;border-top:1px solid var(--sidebar-line);margin:10px 4px}
     .r-foot{margin-top:auto;display:flex;align-items:center;gap:10px;padding:14px 4px 0;border-top:1px solid var(--sidebar-line)}
     .r-foot .avatar{background:var(--brand);color:var(--on-accent)}
@@ -111,7 +111,9 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
     .r-foot .x{color:var(--sidebar-faint)}.r-foot .x:hover{background:rgba(255,255,255,.08);color:#fff}
     .main{margin-left:var(--side-w);min-height:100dvh;display:flex;flex-direction:column}
     .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;height:calc(var(--top-h) + var(--sat));padding:var(--sat) 24px 0;
-      background:var(--glass);backdrop-filter:saturate(160%) blur(14px);-webkit-backdrop-filter:saturate(160%) blur(14px);border-bottom:1px solid var(--line)}
+      background:var(--glass);backdrop-filter:saturate(160%) blur(14px);-webkit-backdrop-filter:saturate(160%) blur(14px);box-shadow:inset 0 -1px var(--line)}
+    /* OPTICAL: the hairline is a shadow, not a border. A 1px border left 55px inside a 56px bar, so the
+       36px buttons sat at 9.5px and every icon in them snapped half a pixel low (ui-precision, 17 Sep 2026) */
     .hamb{display:none}
     .tt{flex:1;min-width:0}.tt strong{display:block;font-size:15px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .tt span{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

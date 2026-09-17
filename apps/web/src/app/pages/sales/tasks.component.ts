@@ -16,7 +16,7 @@ import { IconComponent } from '../../ui/icon.component';
   imports: [FormsModule, DrawerComponent, IconComponent],
   template: `
     <div class="ph"><div><h1 class="t-h1">Tasks</h1><p>{{ sub() }}</p></div>
-      <div class="ph-right"><button class="btn" type="button" (click)="openAdd()"><bb-icon name="plus"/>New task</button></div></div>
+      <div class="ph-right"><button class="btn" type="button" (click)="openAdd()"><bb-icon name="plus"/><span>New task</span></button></div></div>
     <div class="kpi">
       <div class="card"><div class="k-label">Overdue</div><div class="k-val" [class.red]="overdue().length">{{ overdue().length }}</div><div class="k-sub">need doing first</div></div>
       <div class="card"><div class="k-label">Today</div><div class="k-val">{{ dueToday().length }}</div><div class="k-sub">due by tonight</div></div>
@@ -56,7 +56,7 @@ import { IconComponent } from '../../ui/icon.component';
         <p class="t-small" style="margin-top:14px">Added {{ niceDate(t.createdAt) }}@if (t.by) { by {{ t.by }} }.</p>
       }
       <div foot>@if (sel(); as t) {
-        <button class="btn" type="button" (click)="data.toggleTask(t.id); sel.set(null)"><bb-icon name="check"/>{{ t.done ? 'Not done' : 'Done' }}</button>
+        <button class="btn" type="button" (click)="data.toggleTask(t.id); sel.set(null)"><bb-icon name="check"/><span>{{ t.done ? 'Not done' : 'Done' }}</span></button>
         <button class="btn danger sm" type="button" style="margin-left:auto" (click)="remove(t)"><bb-icon name="trash"/></button>
       }</div>
     </bb-drawer>`,

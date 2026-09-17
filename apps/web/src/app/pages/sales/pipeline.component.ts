@@ -23,7 +23,7 @@ import { IconComponent } from '../../ui/icon.component';
           <button type="button" [class.on]="view() === 'board'" (click)="setView('board')"><bb-icon name="board"/>Board</button>
           <button type="button" [class.on]="view() === 'list'" (click)="setView('list')"><bb-icon name="list"/>List</button>
         </div>
-        <button class="btn" type="button" (click)="adding.set(true)"><bb-icon name="plus"/>New deal</button>
+        <button class="btn" type="button" (click)="adding.set(true)"><bb-icon name="plus"/><span>New deal</span></button>
       </div></div>
 
     @if (view() === 'board') {
@@ -92,7 +92,7 @@ import { IconComponent } from '../../ui/icon.component';
     .col-h{display:flex;align-items:center;justify-content:space-between;padding:6px 6px 10px}
     .col-t{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600}.col-t em{font-style:normal;color:var(--muted);font-weight:500;font-size:11px}
     .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}.dot.talking{background:var(--blue)}.dot.quoted{background:var(--amber)}.dot.closing{background:var(--purple)}.dot.won{background:var(--green)}.dot.lost{background:var(--faint)}
-    .col-n{font-size:11px;color:var(--muted);background:var(--surface);border:1px solid var(--line);padding:2px 8px;border-radius:999px;font-weight:600;font-variant-numeric:tabular-nums}
+    .col-n{min-width:26px;height:22px;display:inline-flex;align-items:center;justify-content:center;padding:2px 8px 0;font-size:11px;line-height:1;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:999px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
     .col-b{flex:1;display:flex;flex-direction:column;gap:8px;min-height:120px;padding:4px;border-radius:12px;transition:background var(--dur) var(--ease)}
     .col-b.cdk-drop-list-dragging{background:var(--brand-soft-2);outline:2px dashed var(--brand);outline-offset:-2px}
     .col.done{opacity:.85}

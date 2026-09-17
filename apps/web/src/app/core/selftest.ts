@@ -26,6 +26,7 @@ export async function runSelftest(cast: CastService, data: DataService){
     const fromRight = /right|100%/.test(pos);
     const good = (cs.appearance === 'none' || (cs as any).webkitAppearance === 'none') && /svg/.test(cs.backgroundImage) && fromRight && inset >= 12 && parseFloat(cs.paddingRight) >= 36;
     wrap.remove(); return good; })(), 'probe .field select');
+  ok('no sheet lock is left behind: the page is pinned only while a sheet is open', !document.body.classList.contains('sheet-open') || !!document.querySelector('.drawer.on, .rail.open'));
   ok('viewport covers the notch', /viewport-fit=cover/.test(document.querySelector('meta[name=viewport]')?.getAttribute('content') || ''));
   ok('safe area variables in use', cs.getPropertyValue('--sat') !== '' && !!document.querySelector('.statusfill'));
   /* one colour at the top: inside the shell the glass topbar paints the inset and the

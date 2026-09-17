@@ -17,7 +17,7 @@ import { IconComponent } from '../../ui/icon.component';
       <p class="t-small">{{ dateLine() }}</p>
       <h1 class="t-h1">{{ greet() }}, {{ session.user() }}.</h1>
       <p>{{ brief() }}</p>
-    </div><div class="ph-right"><a class="btn" routerLink="/sales/enquiries" [queryParams]="{ add: 1 }"><bb-icon name="plus"/>New {{ cast.word('enquiry','enquiry').toLowerCase() }}</a></div></div>
+    </div><div class="ph-right"><a class="btn" routerLink="/sales/enquiries" [queryParams]="{ add: 1 }"><bb-icon name="plus"/><span>New {{ cast.word('enquiry','enquiry').toLowerCase() }}</span></a></div></div>
 
     <div class="hero card">
       <div class="h-cell">
