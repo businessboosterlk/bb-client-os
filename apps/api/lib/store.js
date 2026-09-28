@@ -6,14 +6,27 @@
    Every read and write is scoped by client slug. No path reads across clients. */
 const KINDS = new Set(['enquiries', 'deals', 'customers', 'tasks', 'activities']);
 export const mode = process.env.DATA_MODE || (process.env.SUPABASE_SERVICE_ROLE_KEY ? 'supabase' : 'memory');
+/* THE DATABASE HANDS OVER 1,000 ROWS AT MOST AND SAYS NOTHING. Every list read names a limit and
+   an offset, ordered on a stable pair (made, then id), and the app pages until a short page
+   comes back. A read that names no limit gets the first page, never an unbounded one. */
+export const PAGE_MAX = 1000, PAGE_DEFAULT = 500;
+export function paging(url){
+  const q = new URL(url).searchParams;
+  const n = v => { const x = parseInt(v ?? '', 10); return Number.isFinite(x) && x >= 0 ? x : null; };
+  const limit = Math.min(Math.max(n(q.get('limit')) ?? PAGE_DEFAULT, 1), PAGE_MAX);
+  return { limit, offset: n(q.get('offset')) ?? 0 };
+}
 const now = () => new Date().toISOString();
 const uid = () => 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 /* ── memory ── */
-const mem = new Map();
+/* one memory for the whole process. Each route is built on its own, so a plain Map here gave every
+   route its own empty memory: a row written through one address could not be read through another
+   (the tenant wall run, 28 Sep 2026). Memory mode only. */
+const mem = (globalThis.__hubMemory ||= new Map());
 const bucket = (slug, kind) => { if (!mem.has(slug)) mem.set(slug, new Map()); const t = mem.get(slug); if (!t.has(kind)) t.set(kind, new Map()); return t.get(kind); };
 const memory = {
-  async list(slug, kind){ return [...bucket(slug, kind).values()].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')); },
+  async list(slug, kind, { limit = PAGE_DEFAULT, offset = 0 } = {}){ return [...bucket(slug, kind).values()].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '') || String(b.id).localeCompare(String(a.id))).slice(offset, offset + Math.min(limit, PAGE_MAX)); },
   async get(slug, kind, id){ return bucket(slug, kind).get(id) || null; },
   async create(slug, kind, data){ const row = { ...data, id: uid(), createdAt: now(), updatedAt: now() }; bucket(slug, kind).set(row.id, row); return row; },
   async update(slug, kind, id, patch){ const b = bucket(slug, kind); const cur = b.get(id); if (!cur) return null; const row = { ...cur, ...patch, id, updatedAt: now() }; b.set(id, row); return row; },
@@ -33,7 +46,12 @@ export async function supa(){
 }
 const flat = r => ({ ...r.data, id: r.id, createdAt: r.created_at, updatedAt: r.updated_at });
 const supabase = {
-  async list(slug, kind){ const { data, error } = await (await supa()).from('os_records').select('*').eq('client', slug).eq('kind', kind).order('updated_at', { ascending: false }); if (error) throw error; return data.map(flat); },
+  async list(slug, kind, { limit = PAGE_DEFAULT, offset = 0 } = {}){
+    const n = Math.min(limit, PAGE_MAX);
+    const { data, error } = await (await supa()).from('os_records').select('*').eq('client', slug).eq('kind', kind)
+      .order('created_at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + n - 1);
+    if (error) throw error; return data.map(flat);
+  },
   async get(slug, kind, id){ const { data, error } = await (await supa()).from('os_records').select('*').eq('client', slug).eq('kind', kind).eq('id', id).maybeSingle(); if (error) throw error; return data ? flat(data) : null; },
   async create(slug, kind, data){ const { id, createdAt, updatedAt, ...doc } = data; const { data: row, error } = await (await supa()).from('os_records').insert({ client: slug, kind, data: doc }).select().single(); if (error) throw error; return flat(row); },
   async update(slug, kind, id, patch){

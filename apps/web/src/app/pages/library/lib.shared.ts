@@ -11,7 +11,7 @@ export function monthLabel(id: string, label: string, spansYears: boolean){ retu
   standalone: true,
   imports: [IconComponent],
   template: `
-    <a class="li link" [href]="item.href" target="_blank" rel="noreferrer">
+    <a class="li link" data-act="library-open" [href]="item.href" target="_blank" rel="noreferrer" [attr.aria-label]="item.title + ', opens in a new tab'">
       <span class="ic"><bb-icon [name]="icon"/></span>
       <span class="tx"><strong>{{ item.title }}@if (fresh) { <span class="new-badge">New</span> }</strong><span>{{ sub }}</span></span>
       <bb-icon name="ext" class="go"/>

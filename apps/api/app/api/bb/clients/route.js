@@ -36,7 +36,12 @@ export async function POST(req){
 export async function GET(req){
   if (!isAdmin(req)) return deny('BB admin only', 403);
   if (mode !== 'supabase') return Response.json([]);
-  const { data, error } = await (await supa()).from('os_clients').select('slug,name,aliases,active,updated_at,seats');
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  const db = await supa(), data = [];
+  for (let off = 0; off < 100000; off += 1000) {
+    const { data: page, error } = await db.from('os_clients').select('slug,name,aliases,active,updated_at,seats').order('slug', { ascending: true }).range(off, off + 999);
+    if (error) return Response.json({ error: error.message }, { status: 500 });
+    data.push(...page);
+    if (page.length < 1000) break;
+  }
   return Response.json(data.map(c => ({ ...c, seats: (c.seats || []).map(s => ({ label: s.label, issued_at: s.issued_at, revoked: !!s.revoked })) })));
 }

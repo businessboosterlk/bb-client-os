@@ -33,13 +33,11 @@ export async function runSelftest(cast: CastService, data: DataService){
      strip is gone; on the door the strip and the page share the same dark ink */
   const strip = document.querySelector('.statusfill') as HTMLElement;
   const inShell = document.body.classList.contains('in-shell');
-  ok('status strip is one colour with the screen under it',
-     inShell ? getComputedStyle(strip).display === 'none'
-             : (document.querySelector('.door .card')
-                 ? lumOf(getComputedStyle(document.querySelector('.door')!).backgroundColor) < .06 &&
-                   cs.getPropertyValue('--top').trim() === cs.getPropertyValue('--door-ground').trim()
-                 : cs.getPropertyValue('--top').trim() === cs.getPropertyValue('--bg').trim()),
-     inShell ? 'shell: topbar owns the inset' : 'door or launcher: --top ' + cs.getPropertyValue('--top').trim());
+  ok('status strip is one colour with the screen under it: painted, never see through, in the colour of the page',
+     !!strip && getComputedStyle(strip).display !== 'none' && lumOf(getComputedStyle(strip).backgroundColor) === lumOf(getComputedStyle(document.documentElement).backgroundColor) && !/rgba\(0, 0, 0, 0\)|transparent/.test(getComputedStyle(strip).backgroundColor),
+     strip ? getComputedStyle(strip).backgroundColor + ' on ' + getComputedStyle(document.documentElement).backgroundColor : 'no strip');
+  { const root = document.documentElement, was = root.style.getPropertyValue('--vv-top'); root.style.setProperty('--vv-top', '32px'); const m = getComputedStyle(strip).transform; root.style.setProperty('--vv-top', was || '0px');
+    ok('the strip stays under the clock when the keyboard slides the page up', /,\s*32\)$/.test(m), m); }
   ok('browser chrome colour matches the screen too',
      (document.querySelector('meta[name=theme-color]')?.getAttribute('content') || '') === cs.getPropertyValue('--top').trim());
   ok('no field under 16px on a coarse pointer', (() => { const s = document.createElement('style'); s.textContent = ''; const q = matchMedia('(pointer:coarse)').matches; if (!q) return true; return [...document.querySelectorAll('input,select,textarea')].every(e => parseFloat(getComputedStyle(e).fontSize) >= 16); })());
@@ -99,6 +97,41 @@ export async function runSelftest(cast: CastService, data: DataService){
     ok('the spaced lines sit on the optical centre, not pulled left', !door || ['.sys', '.enter', '.big'].every(sel => { const e = document.querySelector(sel); if (!e) return false; const cs2 = getComputedStyle(e); return Math.abs(parseFloat(cs2.textIndent) - parseFloat(cs2.letterSpacing)) < .6; }));
     ok('the door never carries a seat code in the page', !door || !/[A-Z]{3}-[A-Z0-9]{4}-[A-Z0-9]{4}/.test(document.body.innerText));
   }
+  /* ── THE APPLE GRADE LAWS (28 Sep 2026). Each probes the rule itself, so none can pass by finding nothing. ── */
+  { const root = document.documentElement, was = root.style.getPropertyValue('--sat');
+    root.style.setProperty('--sat', '59px'); const mh = getComputedStyle(root).minHeight; const strip = document.querySelector('.statusfill') as HTMLElement;
+    const stripH = strip ? (strip.style.display = 'block', strip.getBoundingClientRect().height) : -1; if (strip) strip.style.display = '';
+    was ? root.style.setProperty('--sat', was) : root.style.removeProperty('--sat');
+    ok('the installed iPhone rule: the page is taller than the screen by the height of the status strip', /59px/.test(mh) && /100%/.test(mh), mh);
+    ok('the status strip follows the inset the phone reports', Math.abs(stripH - 59) < 1, stripH + 'px at an inset of 59'); }
+  { const rgb = (c: string) => (c.match(/[\d.]+/g) || []).slice(0, 3).map(Number).join(',');
+    const page = rgb(getComputedStyle(document.documentElement).backgroundColor), top = cs.getPropertyValue('--top').trim();
+    const hexRgb = (h: string) => { const m = /^#?([0-9a-f]{6})$/i.exec(h); if (!m) return rgb(h); const n = parseInt(m[1], 16); return [n >> 16 & 255, n >> 8 & 255, n & 255].join(','); };
+    const bar = document.querySelector('.topbar'), pill = document.querySelector('.bm-bar'), doorEl = document.querySelector('bb-login .door');
+    ok('one colour from the clock to the bar: the page itself is painted in the colour of the strip', page === hexRgb(top), page + ' against ' + top);
+    ok('one colour: the top bar is the page\'s own colour, never a lighter panel', !inShell || (!!bar && rgb(getComputedStyle(bar).backgroundColor) === page), bar ? getComputedStyle(bar).backgroundColor : 'not in the shell');
+    ok('one colour: the bottom bar is the page\'s own colour', !pill || getComputedStyle(pill).display === 'none' || rgb(getComputedStyle(pill).backgroundColor) === page, pill ? getComputedStyle(pill).backgroundColor : 'no bar on this screen');
+    ok('one colour: the door is one flat black, no fade and no band', !doorEl || (getComputedStyle(doorEl).backgroundImage === 'none' && rgb(getComputedStyle(doorEl).backgroundColor) === page), doorEl ? getComputedStyle(doorEl).backgroundImage : 'not on the door'); }
+  { const shown = (document.querySelector('.r-build, .door .build, .foot .bld')?.textContent || '').replace('Build', '').trim();
+    const file = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json()).then(j => String(j.build || '')).catch(() => '');
+    ok('the build stamp is on screen where a person can read it, and it is the stamp in the version file', /^\d{4}-\d\d-\d\d \d\d:\d\d$/.test(shown) && shown === file, 'on screen ' + shown + ', version file ' + file); }
+  { const all = [...document.querySelectorAll('svg')]; const stray = all.filter(e => !e.closest('bb-icon'));
+    ok('never draw an icon: every drawing on the page comes through the one icon component', all.length > 0 ? stray.length === 0 : !!document.querySelector('.door'), all.length + ' drawings, ' + stray.length + ' from elsewhere'); }
+  /* three faults that only an INSTALLED iPHONE showed (28 Sep 2026), each now a rule that is probed */
+  { const root = document.documentElement, was = root.style.getPropertyValue('--sat'); root.style.setProperty('--sat', '59px');
+    const d = document.createElement('aside'); d.className = 'drawer'; d.style.cssText = 'visibility:hidden'; document.body.appendChild(d);
+    const pt = parseFloat(getComputedStyle(d).paddingTop), phone = innerWidth <= 640; d.remove();
+    was ? root.style.setProperty('--sat', was) : root.style.removeProperty('--sat');
+    ok('a sheet that rises from the bottom of a phone carries no empty band above its title', phone ? pt === 0 : pt === 59, (phone ? 'phone' : 'desk') + ', top padding ' + pt + 'px at an inset of 59'); }
+  { const w = document.createElement('div'); w.className = 'field'; w.style.cssText = 'position:absolute;left:-9999px;top:0;width:200px'; const i = document.createElement('input'); i.type = 'date'; w.appendChild(i); document.body.appendChild(w);
+    const c = getComputedStyle(i), r = i.getBoundingClientRect(); const good = (c.appearance === 'none' || (c as any).webkitAppearance === 'none') && parseFloat(c.minWidth) === 0 && Math.round(r.width) === 200 && Math.round(r.height) === 44; w.remove();
+    ok('a date box is a field like any other: the width of its row and 44px tall', good, Math.round(r.width) + 'x' + Math.round(r.height) + ', appearance ' + c.appearance); }
+  { let hover = 0; const loose: string[] = [];
+    const walk = (rules: CSSRuleList, inHover: boolean) => { for (const r of Array.from(rules)) { const m = r as CSSMediaRule; if (m.media && m.cssRules) { walk(m.cssRules, inHover || /hover/.test(m.conditionText || m.media.mediaText)); continue; } const st = r as CSSStyleRule; if (st.selectorText && /:hover/.test(st.selectorText)) { hover++; if (!inHover) loose.push(st.selectorText.slice(0, 40)); } } };
+    for (const sh of Array.from(document.styleSheets)) { try { walk(sh.cssRules, false); } catch { /* a sheet from another server cannot be read */ } }
+    ok('nothing sticks after a tap: every hover style waits for a pointer that can hover', hover > 0 && loose.length === 0, hover + ' hover rules, ' + loose.length + ' loose' + (loose.length ? ': ' + loose.slice(0, 3).join(' ; ') : '')); }
+  ok('a closed sheet draws nothing', [...document.querySelectorAll('.drawer:not(.on) .d-body')].every(b => b.children.length === 0), document.querySelectorAll('.drawer').length + ' sheets in the page');
+  ok('money is never split from its currency at the end of a line', !/\b[A-Z]{3} \d/.test(document.body.innerText.replace(/\u00a0/g, '~')), (document.body.innerText.match(/\b[A-Z]{3} \d[\d,]*/) || ['none'])[0]);
   ok('a local number becomes a real WhatsApp link', waLink('0771234567', 'X') === 'https://wa.me/94771234567?text=Hello%20X%2C%20' && waLink('', 'X') === '');
   /* behaviour, on a throwaway store */
   if (c && data.mode() === 'local') {

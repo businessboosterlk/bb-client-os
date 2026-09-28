@@ -9,7 +9,7 @@ import { CastService } from '../../core/cast.service';
   template: `
     <div class="ph"><div><h1 class="t-h1">What we understand about {{ cast.cast()?.short || cast.cast()?.name }}</h1>
       <p>These facts guide every piece of work. @if (L().factsReviewed) { Reviewed {{ L().factsReviewed }}. }</p></div>
-      @if (fix()) { <div class="ph-right"><a class="btn ghost sm" [href]="fix()" target="_blank" rel="noreferrer">Update a detail</a></div> }</div>
+      @if (fix()) { <div class="ph-right"><a class="btn ghost" data-act="business-update-top" [href]="fix()" target="_blank" rel="noreferrer">Update a detail</a></div> }</div>
     @for (g of groups(); track g.name) {
       <div class="sec"><div class="sec-head"><h3>{{ g.name }}</h3><span>{{ g.facts.length }}</span></div>
         <div class="card">@for (f of g.facts; track f.k) { <div class="fact"><span>{{ f.k }}</span><strong>{{ f.v }}</strong></div> }</div></div>

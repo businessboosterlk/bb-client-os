@@ -3,10 +3,12 @@ import { RouterOutlet, RouterLink, RouterLinkActive, ActivatedRoute, Router, Nav
 import { filter } from 'rxjs';
 import { CastService } from '../core/cast.service';
 import { SessionService } from '../core/session.service';
-import { DataService } from '../core/data.service';
+import { DataService, longDate } from '../core/data.service';
 import { IconComponent } from '../ui/icon.component';
 import { BottomMenuComponent, MenuTab, MenuAction } from './bottom-menu.component';
 import { ThemeService } from '../core/theme.service';
+import { UpdateService } from '../core/update.service';
+import { AskService } from '../core/ask.service';
 
 /* one colour at the top: the status strip and the browser chrome take the colour of
    the screen they sit on. Cream inside the app, the dark ink only on the door. */
@@ -33,20 +35,21 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
         <img class="r-mark" src="assets/bb-logo-600.png" alt="Business Booster" width="834" height="338">
         <span class="r-eyebrow">The Hub</span>
         <div class="r-clock" aria-label="Time and date"><strong>{{ time() }}</strong><span>{{ date() }}</span></div>
-        <a class="r-client" routerLink="/start" (click)="setRail(false)" [attr.aria-label]="(cast.cast()?.name || '') + ', home'">
-          @if (cast.cast()?.brand?.logo) { <img [src]="cast.cast()!.brand.logo" alt=""> }
+        <a class="r-client" routerLink="/start" data-act="rail-home" (click)="setRail(false)" [attr.aria-label]="(cast.cast()?.name || '') + ', home'">
+          @if (cast.cast()?.brand?.logo && !wide()) { <img [src]="cast.cast()!.brand.logo" alt="" (load)="fit($event)" (error)="wide.set(true)"> }
+          @else { <span class="r-mono">{{ (cast.cast()?.name || '?').slice(0, 1) }}</span> }
           <strong>{{ cast.cast()?.name }}</strong>
         </a>
       </div>
       @for (g of groups; track g.key; let last = $last) {
         <div class="grp" [class.off]="collapsed().has(g.key)">
-          <button class="grp-h" type="button" (click)="toggle(g.key)" [attr.aria-expanded]="!collapsed().has(g.key)">
+          <button class="grp-h" type="button" [attr.data-act]="'rail-group-' + g.key" (click)="toggle(g.key)" [attr.aria-expanded]="!collapsed().has(g.key)">
             <span>{{ g.label }}</span><bb-icon name="chevd" class="chev"/>
           </button>
           <nav><div>
             @for (it of g.items; track it.path) {
-              <a [routerLink]="'/' + g.key + '/' + it.path" routerLinkActive="on" (click)="setRail(false)">
-                <bb-icon [name]="it.icon"/>{{ it.label }}
+              <a [routerLink]="'/' + g.key + '/' + it.path" routerLinkActive="on" ariaCurrentWhenActive="page" [attr.data-act]="'rail-' + it.path" (click)="setRail(false)">
+                <bb-icon [name]="it.icon"/><span>{{ it.label }}</span>
                 @if (it.badge && it.badge() > 0) { <span class="nb">{{ it.badge() }}</span> }
               </a>
             }
@@ -57,22 +60,26 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
       <div class="r-foot">
         <span class="avatar">{{ session.initial() }}</span>
         <span class="who"><strong>{{ session.user() }}</strong><em>{{ role() }}</em></span>
-        <button class="x" type="button" (click)="theme.toggle()" [attr.aria-label]="theme.dark() ? 'Day mode' : 'Night mode'"><bb-icon [name]="theme.dark() ? 'sun' : 'moon'"/></button>
-        <button class="x" type="button" (click)="out()" aria-label="Sign out"><bb-icon name="out"/></button>
+        <button class="x" type="button" data-act="rail-theme" (click)="theme.toggle()" [attr.aria-label]="theme.dark() ? 'Day mode' : 'Night mode'" [attr.aria-pressed]="theme.dark()"><bb-icon [name]="theme.dark() ? 'sun' : 'moon'"/></button>
+        <button class="x" type="button" data-act="rail-sign-out" (click)="out()" aria-label="Sign out"><bb-icon name="out"/></button>
       </div>
+      <p class="r-build">Build {{ update.build }}</p>
     </aside>
 
     <div class="main">
-      <header class="topbar">
-        <button class="x hamb" type="button" (click)="setRail(true)" aria-label="Menu"><bb-icon name="menu"/></button>
+      <header class="topbar" [class.scrolled]="scrolled()">
+        <button class="x hamb" type="button" data-act="menu" (click)="setRail(true)" aria-label="Menu" [attr.aria-expanded]="railOpen()"><bb-icon name="menu"/></button>
         <div class="tt"><strong>{{ title() }}</strong><span>{{ system() === 'library' ? 'Your library' : 'Your sales' }} · {{ cast.cast()?.name }}</span>
           @if (data.pending() > 0) { <em class="off">{{ data.pending() }} waiting to sync</em> }</div>
         <div class="tr">
-          <button class="x theme" type="button" (click)="theme.toggle()" [attr.aria-label]="theme.dark() ? 'Day mode' : 'Night mode'" [attr.aria-pressed]="theme.dark()"><bb-icon [name]="theme.dark() ? 'sun' : 'moon'"/></button>
-          @if (wa()) { <a class="btn wa sm" [href]="wa()" target="_blank" rel="noreferrer" [attr.aria-label]="waLabel()"><bb-icon name="wa"/><span class="lbl">{{ waLabel() }}</span></a> }
+          <button class="x theme" type="button" data-act="theme" (click)="theme.toggle()" [attr.aria-label]="theme.dark() ? 'Day mode' : 'Night mode'" [attr.aria-pressed]="theme.dark()"><bb-icon [name]="theme.dark() ? 'sun' : 'moon'"/></button>
+          @if (wa()) { <a class="btn wa sm" data-act="whatsapp-bb" [href]="wa()" target="_blank" rel="noreferrer" [attr.aria-label]="waLabel()"><bb-icon name="wa"/><span class="lbl">{{ waLabel() }}</span></a> }
         </div>
       </header>
-      <main class="page" [class.enter]="entering()"><router-outlet/></main>
+      <main class="page" [class.enter]="entering()">
+        @if (data.offline()) { <p class="offline" role="status"><bb-icon name="offline"/><span>No connection. Showing what was saved on this device.</span></p> }
+        <router-outlet/>
+      </main>
       <bb-bottom-menu class="tabs" [items]="tabs()" [active]="activeUrl()"/>
     </div>`,
   styles: [`
@@ -88,40 +95,47 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
     .r-clock strong{font-size:30px;font-weight:600;letter-spacing:-.025em;line-height:1;color:#fff;font-variant-numeric:tabular-nums}
     .r-clock span{font-size:12.5px;font-weight:500;color:var(--sidebar-txt)}
     .r-client{display:inline-flex;align-items:center;justify-content:center;gap:9px;max-width:100%;min-height:40px;padding:6px 12px;border-radius:10px;transition:background var(--dur) var(--ease)}
-    .r-client:hover{background:rgba(255,255,255,.06)}
+    @media (hover:hover){.r-client:hover{background:rgba(255,255,255,.06)}}
     .r-client img{width:26px;height:26px;border-radius:7px;background:#fff;padding:2px;object-fit:contain;flex-shrink:0}
+    .r-mono{width:26px;height:26px;border-radius:7px;background:var(--brand);color:var(--on-accent);display:grid;place-items:center;font-size:12.5px;font-weight:700;flex-shrink:0}
     .r-client strong{color:#fff;font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .grp-h{display:flex;align-items:center;justify-content:space-between;width:100%;padding:8px 8px 6px;border:0;background:none;color:var(--sidebar-faint);font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border-radius:8px}
-    .grp-h:hover{color:var(--sidebar-txt)}.grp-h .chev{transition:transform var(--dur) var(--ease);--ico:14px}
+    .grp-h{display:flex;align-items:center;justify-content:space-between;width:100%;padding:8px 8px 6px;border:0;background:none;color:var(--sidebar-txt);font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border-radius:8px}
+    @media (hover:hover){.grp-h:hover{color:var(--sidebar-txt)}}.grp-h .chev{transition:transform var(--dur) var(--ease);--ico:14px}
     .grp.off .grp-h .chev{transform:rotate(-90deg)}
     /* groups fold on a grid track, so the rail never snaps */
     .grp>nav{display:grid;grid-template-rows:1fr;transition:grid-template-rows 240ms var(--ease),opacity 200ms var(--ease)}
     .grp.off>nav{grid-template-rows:0fr;opacity:0;pointer-events:none}
     .grp>nav>div{min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:2px}
     nav a{position:relative;display:flex;align-items:center;gap:11px;min-height:40px;padding:0 10px;border-radius:9px;font-size:13.5px;font-weight:500;color:var(--sidebar-txt);transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
-    nav a:hover{background:rgba(255,255,255,.06);color:#fff}
+    @media (hover:hover){nav a:hover{background:rgba(255,255,255,.06);color:#fff}}
     nav a.on{background:rgba(255,255,255,.08);color:#fff;font-weight:600}
     nav a.on::before{content:"";position:absolute;left:-12px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--brand)}
     nav a bb-icon{--ico:17px;opacity:.85}nav a.on bb-icon{opacity:1;color:var(--brand)}
     .nb{margin-left:auto;font-size:11px;font-weight:700;background:var(--brand);color:var(--on-accent);padding:calc(1px + .05em) 7px calc(1px - .05em);border-radius:999px}
     .div{border:0;border-top:1px solid var(--sidebar-line);margin:10px 4px}
+    .r-build{margin:10px 4px 0;font-size:11px;color:var(--sidebar-txt);opacity:.8;font-variant-numeric:tabular-nums;text-align:center}
     .r-foot{margin-top:auto;display:flex;align-items:center;gap:10px;padding:14px 4px 0;border-top:1px solid var(--sidebar-line)}
     .r-foot .avatar{background:var(--brand);color:var(--on-accent)}
     .r-foot .who{flex:1;min-width:0}.r-foot strong{display:block;color:#fff;font-size:13px}.r-foot em{display:block;font-style:normal;font-size:11px;color:var(--sidebar-faint)}
-    .r-foot .x{color:var(--sidebar-faint)}.r-foot .x:hover{background:rgba(255,255,255,.08);color:#fff}
+    .r-foot .x{color:var(--sidebar-faint)}@media (hover:hover){.r-foot .x:hover{background:rgba(255,255,255,.08);color:#fff}}
     .main{margin-left:var(--side-w);min-height:100dvh;display:flex;flex-direction:column}
     .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;height:calc(var(--top-h) + var(--sat));padding:var(--sat) 24px 0;
-      background:var(--glass);backdrop-filter:saturate(160%) blur(14px);-webkit-backdrop-filter:saturate(160%) blur(14px);box-shadow:inset 0 -1px var(--line)}
+      background:var(--glass);backdrop-filter:saturate(160%) blur(14px);-webkit-backdrop-filter:saturate(160%) blur(14px);transition:box-shadow 160ms var(--ease)}
+    /* ONE COLOUR FROM THE CLOCK TO THE BAR. The top bar is the page's own colour, so at rest there is
+       no band and no line. The hairline appears only while something is passing underneath. */
+    .topbar.scrolled{box-shadow:inset 0 -1px var(--line)}
     /* OPTICAL: the hairline is a shadow, not a border. A 1px border left 55px inside a 56px bar, so the
        36px buttons sat at 9.5px and every icon in them snapped half a pixel low (ui-precision, 17 Sep 2026) */
     .hamb{display:none}
     .tt{flex:1;min-width:0}.tt strong{display:block;font-size:15px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .tt span{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .tt .off{display:inline-block;font-style:normal;font-size:10.5px;font-weight:600;color:var(--amber);background:var(--amber-soft);padding:1px 7px;border-radius:999px;margin-top:2px}
-    .tr{display:flex;gap:6px;align-items:center}.theme{color:var(--muted)}.theme:hover{color:var(--ink)}
+    .tr{display:flex;gap:6px;align-items:center}.theme{color:var(--muted)}@media (hover:hover){.theme:hover{color:var(--ink)}}
     .page{flex:1}
-    .page.enter{animation:pageIn 260ms var(--ease) backwards}
-    @keyframes pageIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+    /* a screen fades in and never moves: a transform on the page would, for as long as it runs, make
+       the page the box that every sheet inside it is placed against */
+    .page.enter{animation:pageIn 220ms var(--ease) backwards}
+    @keyframes pageIn{from{opacity:0}to{opacity:1}}
     @media (prefers-reduced-motion:reduce){.page.enter{animation:none}}
     .tabs{display:none}
     @media (max-width:1019px){
@@ -129,14 +143,20 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
       .rail.open{transform:none;opacity:1;visibility:visible;transition:transform 240ms var(--ease),opacity 240ms var(--ease)}
       .main{margin-left:0}
       .hamb{display:grid}
-      .topbar{padding:var(--sat) 12px 0 8px}
-      .page{padding:16px 16px calc(84px + var(--sab))}
-      .btn.wa .lbl{display:none}.btn.wa.sm{width:38px;padding:0;border-radius:10px}
+      .topbar{padding:var(--sat) 16px 0 8px}
+      .page{padding:12px 16px calc(96px + var(--sab))}
+      .btn.wa .lbl{display:none}.btn.wa.sm{width:40px;min-height:40px;padding:0;border-radius:10px}.btn.wa.sm bb-icon{--ico:18px}
       .tabs{display:block}
     }`]
 })
 export class ShellComponent implements OnInit, OnDestroy {
   cast = inject(CastService); session = inject(SessionService); data = inject(DataService); theme = inject(ThemeService);
+  update = inject(UpdateService); private ask = inject(AskService);
+  scrolled = signal(false);
+  /* a wide wordmark squeezed into a 26px tile is a smudge: measured when it loads, never assumed */
+  wide = signal(false);
+  fit(e: Event){ const i = e.target as HTMLImageElement; if (!i.naturalHeight || i.naturalWidth / i.naturalHeight > 1.6) this.wide.set(true); }
+  @HostListener('window:scroll') onScroll(){ if (document.body.classList.contains('sheet-open')) return; const v = scrollY > 2; if (v !== this.scrolled()) this.scrolled.set(v); }
   private route = inject(ActivatedRoute); private router = inject(Router);
   railOpen = signal(false);
   private railLockY = 0;
@@ -172,16 +192,17 @@ export class ShellComponent implements OnInit, OnDestroy {
   tabs = computed<MenuTab[]>(() => {
     const sys = this.system(); const c = this.cast.cast();
     const months = (m: 'videos' | 'posts'): MenuAction[] => (c?.library.months || []).filter(x => x[m].length).slice(0, 6)
-      .map(x => ({ label: x.label + ' ' + x.id.slice(0, 4), icon: m === 'videos' ? 'video' : 'post', link: '/library/' + m, params: { m: x.id } }));
+      .map(x => ({ id: m + '-month', label: x.label + ' ' + x.id.slice(0, 4), icon: m === 'videos' ? 'video' : 'post', link: '/library/' + m, params: { m: x.id } }));
+    const enq = this.cast.word('enquiry', 'enquiry').toLowerCase(), cus = this.cast.word('customer', 'customer').toLowerCase();
     const menus: Record<string, MenuAction[]> = {
-      month: [ ...(this.wa() ? [{ label: this.cast.isGroup() ? 'Our group with Business Booster' : 'Message Business Booster', icon: 'wa', href: this.wa() }] : []), { label: 'Your sales', icon: 'pipe', link: '/sales' } ],
+      month: [ ...(this.wa() ? [{ id: 'month-whatsapp', label: this.cast.isGroup() ? 'Our group with Business Booster' : 'Message Business Booster', icon: 'wa', href: this.wa() }] : []), { id: 'month-sales', label: 'Your sales', icon: 'pipe', link: '/sales' } ],
       videos: months('videos'), posts: months('posts'), docs: [],
-      business: [ { label: 'Update a detail', icon: 'edit', href: this.cast.whatsapp(`Hello, this is ${c?.name} [Hub]. One of the business details needs updating: `) } ],
-      dashboard: [ { label: 'New ' + this.cast.word('enquiry', 'enquiry').toLowerCase(), icon: 'plus', link: '/sales/enquiries', params: { add: 1 } }, { label: 'Your library', icon: 'video', link: '/library' }, { label: 'Sign out', icon: 'out', run: () => this.out() } ],
-      enquiries: [ { label: 'New ' + this.cast.word('enquiry', 'enquiry').toLowerCase(), icon: 'plus', link: '/sales/enquiries', params: { add: 1 } }, { label: 'Waiting', icon: 'inbox', link: '/sales/enquiries', params: { f: 'new' } }, { label: 'Everything', icon: 'list', link: '/sales/enquiries', params: { f: 'all' } } ],
-      pipeline: [ { label: 'Board', icon: 'board', link: '/sales/pipeline', params: { view: 'board' } }, { label: 'List', icon: 'list', link: '/sales/pipeline', params: { view: 'list' } }, { label: 'New deal', icon: 'plus', link: '/sales/pipeline', params: { add: 1 } } ],
-      customers: [ { label: 'New ' + this.cast.word('customer', 'customer').toLowerCase(), icon: 'plus', link: '/sales/customers', params: { add: 1 } } ],
-      tasks: [ { label: 'New task', icon: 'plus', link: '/sales/tasks', params: { add: 1 } }, { label: 'Open', icon: 'check', link: '/sales/tasks' } ]
+      business: [ { id: 'business-update', label: 'Update a detail', icon: 'edit', href: this.cast.whatsapp(`Hello, this is ${c?.name} [Hub]. One of the business details needs updating: `) } ],
+      dashboard: [ { id: 'dashboard-new-enquiry', label: 'New ' + enq, icon: 'plus', link: '/sales/enquiries', params: { add: 1 } }, { id: 'dashboard-library', label: 'Your library', icon: 'video', link: '/library' }, { id: 'dashboard-sign-out', label: 'Sign out', icon: 'out', run: () => this.out() } ],
+      enquiries: [ { id: 'enquiries-new', label: 'New ' + enq, icon: 'plus', link: '/sales/enquiries', params: { add: 1 } }, { id: 'enquiries-board', label: 'Board', icon: 'board', link: '/sales/enquiries', params: { view: 'board' } }, { id: 'enquiries-list', label: 'List', icon: 'list', link: '/sales/enquiries', params: { view: 'list' } } ],
+      pipeline: [ { id: 'pipeline-new', label: 'New deal', icon: 'plus', link: '/sales/pipeline', params: { add: 1 } }, { id: 'pipeline-board', label: 'Board', icon: 'board', link: '/sales/pipeline', params: { view: 'board' } }, { id: 'pipeline-list', label: 'List', icon: 'list', link: '/sales/pipeline', params: { view: 'list' } } ],
+      customers: [ { id: 'customers-new', label: 'New ' + cus, icon: 'plus', link: '/sales/customers', params: { add: 1 } } ],
+      tasks: [ { id: 'tasks-new', label: 'New task', icon: 'plus', link: '/sales/tasks', params: { add: 1 } } ]
     };
     return this.groups.find(g => g.key === sys)!.items.map(it => ({ ...it, path: '/' + sys + '/' + it.path, menu: menus[it.path] || [] }));
   });
@@ -199,8 +220,8 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.theme.apply();
     this.sub = this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe(() => {
       const was = this.activeUrl(); this.readTitle();
-      /* a screen change rises in; a query-param change on the same screen does not */
-      if (was && was !== this.activeUrl()) { this.entering.set(false); requestAnimationFrame(() => this.entering.set(true)); }
+      /* a screen change rises in and opens at its own top; a query-param change on the same screen does neither */
+      if (was && was !== this.activeUrl()) { scrollTo(0, 0); this.scrolled.set(false); this.entering.set(false); requestAnimationFrame(() => this.entering.set(true)); }
     });
     this.tick(); this.timer = setInterval(() => this.tick(), 15000);
   }
@@ -208,8 +229,14 @@ export class ShellComponent implements OnInit, OnDestroy {
   private readTitle(){ let r = this.route; while (r.firstChild) r = r.firstChild; this.title.set(r.snapshot.data['title'] || ''); this.activeUrl.set(this.router.url.split('?')[0]); }
   private tick(){ const d = new Date();
     this.time.set(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`);
-    this.date.set(d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })); }
+    this.date.set(longDate(d)); }
   toggle(k: string){ const s = new Set(this.collapsed()); s.has(k) ? s.delete(k) : s.add(k); this.collapsed.set(s); }
-  out(){ this.session.logout(); this.router.navigate(['/login']); }
+  /* signing out with changes still waiting to reach the server would lose them: say so first */
+  async out(){
+    const n = this.data.pending();
+    if (n > 0 && !(await this.ask.confirm({ title: 'Sign out now?', body: `${n} ${n === 1 ? 'change has' : 'changes have'} not reached the server yet. Signing out removes ${n === 1 ? 'it' : 'them'} from this device.`, yes: 'Sign out anyway', no: 'Stay signed in', danger: true }))) return;
+    this.setRail(false);
+    await this.data.signOut(); this.router.navigate(['/login']);
+  }
   @HostListener('document:keydown.escape') esc(){ this.setRail(false); }
 }

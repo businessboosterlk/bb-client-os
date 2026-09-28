@@ -15,7 +15,10 @@ export class CastService {
 
   async loadConfig(){
     try { const r = await fetch('config.json', { cache: 'no-cache' }); if (r.ok) this.config.set({ api: '', bbWa: '94767412531', ...(await r.json()) }); } catch {}
-    const q = new URLSearchParams(location.search).get('api'); if (q && /^https?:\/\//.test(q)) this.config.set({ ...this.config(), api: q.replace(/\/$/, '') });
+    /* the address may name another API ONLY on a developer's own machine. Anywhere else a link could
+       point the door at a stranger's server, and the door sends the business name and the code. */
+    const q = new URLSearchParams(location.search).get('api');
+    if (q && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(q) && /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) this.config.set({ ...this.config(), api: q.replace(/\/$/, '') });
   }
   /* static demo path: the cast file named in the address, or the last one used */
   async loadStatic(slug?: string): Promise<Cast | null> {
@@ -39,8 +42,15 @@ export class CastService {
     set('--brand-soft', toHex(mix(b, dark ? [22, 23, 28] : [255, 255, 255], dark ? .72 : .86))); set('--brand-soft-2', toHex(mix(b, dark ? [22, 23, 28] : [255, 255, 255], dark ? .84 : .93)));
     set('--brand-lite', toHex(mix(b, [255, 255, 255], .35)));
     set('--brand-ink', toHex(mix(b, [12, 12, 14], .88))); set('--sidebar', toHex(mix(b, [12, 12, 14], .9)));
-    set('--on-accent', lum(b) > .55 ? '#141417' : '#ffffff');
+    /* words on the accent take whichever of white and ink reads better against THIS client's colour */
+    set('--on-accent', ratio([255, 255, 255], b) >= ratio([20, 20, 23], b) ? '#ffffff' : '#141417');
     if (dark) set('--brand-dark', toHex(mix(b, [255, 255, 255], .18)));
+    /* THE ACCENT AS WORDS. A client's colour is chosen for a logo, not for reading at 12px. The
+       colour used for words and initials is walked towards ink (or towards white at night) until
+       it reads at 4.5 to 1 on the soft tile AND on a card, whatever hex the cast carries. */
+    const soft = mix(b, dark ? [22, 23, 28] : [255, 255, 255], dark ? .72 : .86), card: RGB = dark ? [22, 23, 28] : [255, 255, 255], to: RGB = dark ? [255, 255, 255] : [0, 0, 0];
+    let text = b; for (let t = 0; t <= 1.001 && (ratio(text, soft) < 4.6 || ratio(text, card) < 4.6); t += .04) text = mix(b, to, t);
+    set('--brand-text', toHex(text));
     document.title = `${cast.name} · The Hub`;
     const m = document.getElementById('manifest') as HTMLLinkElement | null;
     if (m) {
@@ -59,11 +69,14 @@ export class CastService {
   }
   isGroup(){ return !!this.cast()?.bb?.group; }
   word(k: string, fallback: string) { return this.words()[k] || fallback; }
-  money(n: number) { const cur = this.word('currency', 'LKR'); return n ? `${cur} ${Math.round(n).toLocaleString('en-GB')}` : ''; }
-  moneyShort(n: number) { const cur = this.word('currency', 'LKR'); if (!n) return ''; if (n >= 1e6) return `${cur} ${(n / 1e6).toFixed(n % 1e6 ? 1 : 0)}M`; if (n >= 1e3) return `${cur} ${Math.round(n / 1e3)}K`; return `${cur} ${n}`; }
+  /* nothing yet, written with its currency and never split from it */
+  zero() { return `${this.word('currency', 'LKR')}\u00a00`; }
+  money(n: number) { const cur = this.word('currency', 'LKR'); return n ? `${cur}\u00a0${Math.round(n).toLocaleString('en-GB')}` : ''; }
+  moneyShort(n: number) { const cur = this.word('currency', 'LKR'); if (!n) return ''; if (n >= 1e6) return `${cur}\u00a0${(n / 1e6).toFixed(n % 1e6 ? 1 : 0)}M`; if (n >= 1e3) return `${cur}\u00a0${Math.round(n / 1e3)}K`; return `${cur}\u00a0${Math.round(n)}`; }
 }
 type RGB = [number, number, number];
 function hex(h: string): RGB | null { const m = /^#?([0-9a-f]{6})$/i.exec(h || ''); if (!m) return null; const n = parseInt(m[1], 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
 function toHex(c: RGB) { return '#' + c.map(v => Math.round(v).toString(16).padStart(2, '0')).join(''); }
 function mix(a: RGB, b: RGB, t: number): RGB { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
+function ratio(a: RGB, b: RGB) { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); }
 function lum(c: RGB) { const f = (v: number) => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }; return .2126 * f(c[0]) + .7152 * f(c[1]) + .0722 * f(c[2]); }

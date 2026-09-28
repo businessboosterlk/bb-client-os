@@ -1,4 +1,4 @@
-import { store, validKind } from '../../../../lib/store.js';
+import { store, validKind, paging } from '../../../../lib/store.js';
 import { session, deny } from '../../../../lib/auth.js';
 export const dynamic = 'force-dynamic';
 async function gate(req, params){
@@ -7,7 +7,7 @@ async function gate(req, params){
   const s = session(req, slug); if (!s) return { err: deny() };
   return { slug, table, seat: s.seat };
 }
-export async function GET(req, { params }){ const g = await gate(req, params); if (g.err) return g.err; return Response.json(await store.list(g.slug, g.table)); }
+export async function GET(req, { params }){ const g = await gate(req, params); if (g.err) return g.err; return Response.json(await store.list(g.slug, g.table, paging(req.url))); }
 export async function POST(req, { params }){
   const g = await gate(req, params); if (g.err) return g.err;
   const body = await req.json().catch(() => null);

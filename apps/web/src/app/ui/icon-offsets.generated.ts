@@ -1,0 +1,4 @@
+/* WRITTEN BY scripts/icon-centre.mjs. NEVER EDIT BY HAND.
+   OFFSETS moves each drawing onto the centre of its 24 unit frame. AIR is the empty space left at its side. */
+export const OFFSETS: Record<string, [number, number]> = {"home":[0,0.5],"check":[0,0.5],"msg":[0,-0.5],"meet":[0,0.5],"flame":[0,-0.5]};
+export const AIR: Record<string, number> = {"home":2.1,"video":1.1,"post":2.1,"doc":3.1,"brain":1.1,"dash":2.1,"inbox":1.1,"pipe":2.1,"users":1.1,"user":4.1,"search":2.1,"plus":4.1,"x":5.1,"chev":8.1,"chevd":5.1,"back":8.1,"check":3.1,"clock":1.1,"phone":1.1,"msg":1.1,"meet":2.1,"note":2.1,"quote":3.1,"trend":1.1,"money":1.1,"flame":4.1,"alert":1.09,"lock":2.1,"board":2.1,"list":2.1,"menu":3.1,"out":2.1,"grid":2.1,"ext":2.1,"trash":2.1,"edit":1.1,"sun":1.1,"moon":2.11,"filter":2.1,"offline":1.1,"more":3.1,"refresh":2.1,"share":3.1,"wa":0.06};

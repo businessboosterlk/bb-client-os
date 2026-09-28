@@ -2,7 +2,7 @@ import { Component, Input, signal, computed, ElementRef, inject, HostListener, V
 import { Router } from '@angular/router';
 import { IconComponent } from '../ui/icon.component';
 
-export interface MenuAction { label: string; icon: string; link?: string; params?: Record<string, any>; href?: string; run?: () => void; }
+export interface MenuAction { id: string; label: string; icon: string; link?: string; params?: Record<string, any>; href?: string; run?: () => void; }
 export interface MenuTab { path: string; label: string; icon: string; badge?: () => number; menu?: MenuAction[]; }
 
 /* The phone bar, built to the uselayouts Bottom Menu (MIT, 21st.dev, 0xUrvish):
@@ -22,21 +22,21 @@ export interface MenuTab { path: string; label: string; icon: string; badge?: ()
           @for (c of view(); track c.path) {
             <div class="bm-view" [class.swap]="swapped()">
               <div class="bm-title">{{ c.label }}</div>
-              @for (a of c.menu; track a.label) {
-                <button type="button" class="bm-item" (click)="act(a)"><bb-icon [name]="a.icon"/><span>{{ a.label }}</span></button>
+              @for (a of c.menu; track a.id) {
+                <button type="button" class="bm-item" [attr.data-act]="'menu-' + a.id" (click)="act(a)"><bb-icon [name]="a.icon"/><span>{{ a.label }}</span></button>
               }
             </div>
           }
         </div>
       </div>
-      <div class="bm-bar" role="tablist" aria-label="Screens">
+      <nav class="bm-bar" aria-label="Screens">
         @for (it of items; track it.path) {
-          <button type="button" class="bm-btn" [class.on]="active === it.path" [class.sel]="open() === it.path" (click)="tap(it, $event)" [attr.aria-label]="it.label" [attr.aria-expanded]="open() === it.path">
+          <button type="button" class="bm-btn" [class.on]="active === it.path" [class.sel]="open() === it.path" [attr.data-act]="'tab-' + it.path.split('/').pop()" (click)="tap(it, $event)" [attr.aria-label]="it.label + (it.badge && it.badge() > 0 ? ', ' + it.badge() + ' waiting' : '')" [attr.aria-current]="active === it.path ? 'page' : null" [attr.aria-expanded]="open() === it.path">
             <bb-icon [name]="it.icon"/>
             @if (it.badge && it.badge() > 0) { <i class="dot"></i> }
           </button>
         }
-      </div>
+      </nav>
     </div>`,
   styles: [`
     :host{display:block}
@@ -50,7 +50,9 @@ export interface MenuTab { path: string; label: string; icon: string; badge?: ()
     .bm-btn{position:relative;width:46px;height:46px;border:0;border-radius:16px;background:none;color:var(--muted);display:grid;place-items:center;
       transition:background 150ms var(--ease),color 150ms var(--ease),transform 150ms var(--ease)}
     .bm-btn bb-icon{--ico:22px}
-    .bm-btn.on{color:var(--brand-dark)}
+    .bm-btn.on{color:var(--brand-text)}
+    /* the current screen is marked for the eye as well as for a screen reader */
+    .bm-btn.on::after{content:"";position:absolute;left:50%;bottom:5px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:currentColor}
     .bm-btn.sel{background:var(--surface-2);color:var(--ink)}
     .bm-btn:active{transform:scale(.92)}
     .bm-btn .dot{position:absolute;top:9px;right:9px;width:7px;height:7px;border-radius:50%;background:var(--brand);border:2px solid var(--dot-ring)}
@@ -73,7 +75,7 @@ export interface MenuTab { path: string; label: string; icon: string; badge?: ()
     .bm-item{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:12px;background:none;text-align:left;
       font-size:15px;color:var(--ink-2);transition:background 100ms linear,color 100ms linear,transform 120ms var(--ease)}
     .bm-item bb-icon{--ico:20px;color:var(--muted);transition:color 100ms linear}
-    .bm-item:hover,.bm-item:active{background:var(--surface-2);color:var(--ink)}.bm-item:hover bb-icon,.bm-item:active bb-icon{color:var(--ink)}
+    .bm-item:active{background:var(--surface-2);color:var(--ink)}@media (hover:hover){.bm-item:hover{background:var(--surface-2);color:var(--ink)}}.bm-item:active bb-icon{color:var(--ink)}@media (hover:hover){.bm-item:hover bb-icon{color:var(--ink)}}
     .bm-item:active{transform:scale(.985)}
     @media (prefers-reduced-motion:reduce){.bm-sub,.bm-card,.bm-btn,.bm-item{transition:none}.bm-view.swap{animation:none}}
 `]

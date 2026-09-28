@@ -25,14 +25,37 @@ npm run check        # stack standard + cast guard
 
 Add `?selftest` to any page to run the harness in the browser (prints one line per check).
 
+## The gate
+
+```bash
+bash scripts/gate.sh             # every check the Hub has, cheapest first, each with its count
+bash scripts/deploy-pages.sh     # stamp, gate, publish the tested files, read the live files back
+```
+
+| Check | Script | What it proves |
+|---|---|---|
+| Build stamp | `scripts/stamp.mjs --check` | one stamp in the app and in `version.json` |
+| Icons | `scripts/build-icons.mjs --check`, `scripts/icon-centre.mjs --check` | every icon comes from Lucide or Simple Icons and sits on the centre of its frame |
+| Self test | `scripts/selftest-run.mjs` | the app's own `?selftest`, walked under the folder it is published in |
+| Pixel precision | `scripts/ui-precision.mjs` | every centred glyph, measured by its ink with the real font |
+| Accessibility | `scripts/a11y.mjs` | names, labels, focus, dialogues, targets, contrast |
+| Every screen | `scripts/ui-walk.mjs`, then `scripts/contact-sheet.mjs` | the gap between every pair of controls, and photographs to LOOK at |
+| Click path | `scripts/click-path.mjs` | every action counted from the source and pressed, Back once and twice |
+| Data laws | `scripts/data-run.mjs` | paging, list windows, the device copy, no connection, drafts, sign out |
+| Tenant wall | `scripts/tenant-wall.mjs` | two test clients against the real API in memory mode. Report only |
+
+What no script can prove is proven on the iPhone simulator with the app INSTALLED from the Home
+Screen. Photographs go in `evidence/iphone-before` and `evidence/iphone-after`.
+
 ## Pixel precision
 
 Every glyph meant to sit in the centre of its shape is measured by its ink, not by its CSS box.
 
 ```bash
 node scripts/icon-centre.mjs --check     # every icon drawn on the centre of its 24 unit frame
-node scripts/icon-centre.mjs             # rewrite the OFFSETS table after adding or editing an icon
-node scripts/ui-precision.mjs http://localhost:8772/   # serve a build first; exits 1 on any miss
+node scripts/build-icons.mjs             # add an icon: name it in the LINE table, never draw it
+node scripts/icon-centre.mjs             # rewrite the offsets and the air after adding an icon
+node scripts/ui-precision.mjs            # serves the build itself; exits 1 on any miss
 ```
 
 The runner reads the rail badges, the avatar, the board count pills, the Board and List switch,

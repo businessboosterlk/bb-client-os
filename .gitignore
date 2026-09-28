@@ -8,3 +8,6 @@ apps/web/.angular/
 
 # server clients' settings: onboarding input only, stored in the database, never in a public repo
 casts/private/
+
+# photographs and run output: proof for a person to look at, rebuilt by every run
+evidence/

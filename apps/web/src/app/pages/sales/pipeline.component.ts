@@ -1,162 +1,193 @@
-import { Component, inject, computed, signal, OnInit, OnDestroy } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { Component, inject, computed, signal, effect, OnInit, OnDestroy } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { CastService } from '../../core/cast.service';
-import { DataService, waLink, daysSince } from '../../core/data.service';
+import { DataService, daysSince, since } from '../../core/data.service';
+import { AskService } from '../../core/ask.service';
+import { ScreenService } from '../../core/screen.service';
 import { Deal, Stage } from '../../core/models';
-import { DealDrawerComponent } from './deal-drawer.component';
+import { DealDrawerComponent, LOST_REASONS } from './deal-drawer.component';
 import { DealAddComponent } from './deal-add.component';
 import { IconComponent } from '../../ui/icon.component';
+import { FilterBarComponent, FilterDef } from '../../ui/filter-bar.component';
+import { MoreComponent, WINDOW } from '../../ui/more.component';
 
-/* Two views of the same deals: the board (the kanban BB runs its own sales on,
-   drag a card between stages, touch included) and the list (every deal in one
-   sortable table with the stage changeable inline). One switch, remembered. */
+/* Two views of the same deals: the board (drag a card between stages, touch included) and the
+   list (every deal in one sortable table with the stage changeable in place). One switch,
+   remembered on the device. Both draw a window of thirty, so a long book stays light. */
 @Component({
   selector: 'bb-pipeline',
   standalone: true,
-  imports: [FormsModule, DragDropModule, DealDrawerComponent, DealAddComponent, IconComponent],
+  imports: [FormsModule, DragDropModule, DealDrawerComponent, DealAddComponent, IconComponent, FilterBarComponent, MoreComponent],
   template: `
     <div class="ph"><div><h1 class="t-h1">Pipeline</h1><p>{{ sub() }}</p></div>
       <div class="ph-right">
-        <div class="seg" role="tablist">
-          <button type="button" [class.on]="view() === 'board'" (click)="setView('board')"><bb-icon name="board"/>Board</button>
-          <button type="button" [class.on]="view() === 'list'" (click)="setView('list')"><bb-icon name="list"/>List</button>
+        <div class="seg" role="group" aria-label="View">
+          <button type="button" data-act="pipeline-view-board" [class.on]="view() === 'board'" [attr.aria-pressed]="view() === 'board'" (click)="setView('board')"><bb-icon name="board"/><span>Board</span></button>
+          <button type="button" data-act="pipeline-view-list" [class.on]="view() === 'list'" [attr.aria-pressed]="view() === 'list'" (click)="setView('list')"><bb-icon name="list"/><span>List</span></button>
         </div>
-        <button class="btn" type="button" (click)="adding.set(true)"><bb-icon name="plus"/><span>New deal</span></button>
+        <button class="btn" type="button" data-act="deal-new" (click)="adding.set(true)"><bb-icon name="plus"/><span>New deal</span></button>
       </div></div>
 
-    @if (view() === 'board') {
+    <bb-filter-bar [state]="f" [query]="q" [defs]="defs()" placeholder="Search deals" label="Search by name, number or what they want"
+      [count]="rows().length" noun="deal" nouns="deals" store="pipeline"/>
+
+    @if (data.loading()) {
+      <div class="card skel" aria-busy="true" aria-label="Loading deals"><i></i><i></i><i></i><i></i></div>
+    } @else if (view() === 'board') {
       <div class="board" cdkDropListGroup>
         @for (col of columns(); track col.key) {
-          <div class="col" [class.done]="col.key === 'won' || col.key === 'lost'">
+          <section class="col" [class.done]="col.key === 'won' || col.key === 'lost'" [attr.aria-label]="col.label">
             <div class="col-h">
               <span class="col-t"><i class="dot" [class]="'dot ' + col.key"></i>{{ col.label }}@if (col.prob !== null) { <em>{{ col.prob }}%</em> }</span>
               <span class="col-n">{{ col.deals.length }}@if (col.value) { · {{ cast.moneyShort(col.value) }} }</span>
             </div>
             <div class="col-b" cdkDropList [cdkDropListData]="col.key" (cdkDropListDropped)="drop($event)">
-              @for (d of col.deals; track d.id) {
-                <div class="dc" cdkDrag [cdkDragData]="d" (click)="sel.set(d)">
-                  <div class="dc-rail" [class]="'dc-rail ' + d.stage"></div>
+              @for (d of col.deals.slice(0, colShown()[col.key] || 15); track d.id) {
+                <button type="button" class="dc" data-act="deal-open" cdkDrag [cdkDragData]="d" [cdkDragStartDelay]="touch ? 220 : 0" (click)="sel.set(d)">
+                  <span class="dc-rail" [class]="'dc-rail ' + d.stage"></span>
                   <strong>{{ d.name }}</strong>
                   <span class="dc-sub">{{ d.wants || d.phone || 'No details yet' }}</span>
-                  <div class="dc-meta">
-                    @if (d.value) { <span class="dc-val">{{ cast.moneyShort(d.value) }}</span> }
-                    @if (d.nextStep) { <span class="dc-next"><bb-icon name="clock"/>{{ d.nextStep }}</span> }
-                  </div>
+                  @if (d.value || d.nextStep) {
+                    <span class="dc-meta">
+                      @if (d.value) { <span class="dc-val">{{ cast.moneyShort(d.value) }}</span> }
+                      @if (d.nextStep) { <span class="dc-next"><bb-icon name="clock"/><span>{{ d.nextStep }}</span></span> }
+                    </span>
+                  }
                   @if (quiet(d) >= 5 && open(d)) { <span class="dc-warn" [class.red]="quiet(d) >= 10">{{ quiet(d) }} days quiet</span> }
                   <div class="dc-ph" *cdkDragPlaceholder></div>
-                </div>
+                </button>
               } @empty { <div class="col-empty">{{ col.key === 'won' ? 'Nothing won yet' : col.key === 'lost' ? 'Nothing lost' : 'Drop a deal here' }}</div> }
+              @if (col.deals.length > (colShown()[col.key] || 15)) { <button type="button" class="btn ghost sm col-more" data-act="pipeline-column-more" (click)="colMore(col.key)">Show 15 more of {{ col.deals.length }}</button> }
             </div>
-          </div>
+          </section>
         }
       </div>
     } @else {
-      <div class="toolbar">
-        <div class="chips">@for (f of listFilters; track f[0]) { <button type="button" [class.on]="lf() === f[0]" (click)="lf.set(f[0])">{{ f[1] }}</button> }</div>
-        <span class="t-small" style="margin-left:auto">{{ listRows().length }} {{ listRows().length === 1 ? 'deal' : 'deals' }}</span>
-      </div>
-      <div class="card tbl-wrap">
-        <table class="tbl">
-          <thead><tr>
-            <th (click)="sortBy('name')" class="s">Deal{{ arrow('name') }}</th><th (click)="sortBy('stage')" class="s">Stage{{ arrow('stage') }}</th>
-            <th class="num s" (click)="sortBy('value')">Worth{{ arrow('value') }}</th><th>Next step</th><th class="s" (click)="sortBy('quiet')">Last touch{{ arrow('quiet') }}</th><th></th>
-          </tr></thead>
-          <tbody>
-            @for (d of listRows(); track d.id) {
-              <tr (click)="sel.set(d)">
-                <td><div class="who"><span class="avatar">{{ d.name.slice(0,1) }}</span><div><strong>{{ d.name }}</strong><span>{{ d.wants || d.phone || '' }}</span></div></div></td>
-                <td (click)="$event.stopPropagation()">
-                  <select class="st" [class]="'st ' + d.stage" [ngModel]="d.stage" (ngModelChange)="move(d, $event)">
-                    @for (s of stages(); track s.key) { <option [value]="s.key">{{ s.label }}</option> }
-                    <option value="won">Won</option><option value="lost">Lost</option>
-                  </select>
-                </td>
-                <td class="num">{{ cast.money(d.value) || '' }}</td>
-                <td class="t-small">{{ d.nextStep || '' }}@if (d.nextAt) { <em class="due"> by {{ d.nextAt }}</em> }</td>
-                <td class="t-small" [class.warn]="quiet(d) >= 5 && open(d)">{{ quiet(d) === 0 ? 'Today' : quiet(d) + ' days ago' }}</td>
-                <td class="acts" (click)="$event.stopPropagation()">@if (waLink(d.phone, d.name); as w) { <a class="btn wa sm icon" [href]="w" target="_blank" rel="noreferrer"><bb-icon name="wa"/></a> }</td>
-              </tr>
-            } @empty { <tr><td colspan="6"><div class="empty"><strong>Nothing here</strong>Start an enquiry or add a deal and it lands here.</div></td></tr> }
-          </tbody>
-        </table>
+      <div class="card">
+        @if (screen.wide()) {
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr>
+              <th [attr.aria-sort]="aria('name')"><button type="button" class="th" data-act="pipeline-sort-name" (click)="sortBy('name')">Deal{{ arrow('name') }}</button></th>
+              <th [attr.aria-sort]="aria('stage')"><button type="button" class="th" data-act="pipeline-sort-stage" (click)="sortBy('stage')">Stage{{ arrow('stage') }}</button></th>
+              <th class="num" [attr.aria-sort]="aria('value')"><button type="button" class="th" data-act="pipeline-sort-value" (click)="sortBy('value')">Worth{{ arrow('value') }}</button></th>
+              <th>Next step</th>
+              <th [attr.aria-sort]="aria('quiet')"><button type="button" class="th" data-act="pipeline-sort-quiet" (click)="sortBy('quiet')">Last touch{{ arrow('quiet') }}</button></th>
+            </tr></thead>
+            <tbody>
+              @for (d of rows().slice(0, shown()); track d.id) {
+                <tr data-act="deal-open" tabindex="0" (click)="sel.set(d)" (keydown.enter)="sel.set(d)">
+                  <td><div class="who"><span class="avatar">{{ d.name.slice(0,1) }}</span><div><strong>{{ d.name }}</strong><span>{{ d.wants || d.phone || '' }}</span></div></div></td>
+                  <td (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()">
+                    <select class="st" [class]="'st ' + d.stage" data-act="deal-stage-row" [attr.aria-label]="'Stage of ' + d.name" [ngModel]="d.stage" (change)="pick(d, $event)">
+                      @for (s of stages(); track s.key) { <option [value]="s.key">{{ s.label }}</option> }
+                      <option value="won">Won</option><option value="lost">Lost</option>
+                    </select>
+                  </td>
+                  <td class="num">{{ cast.money(d.value) || '' }}</td>
+                  <td class="t-small">{{ d.nextStep || '' }}@if (d.nextAt) { <em class="due"> by {{ d.nextAt }}</em> }</td>
+                  <td class="t-small" [class.warn]="quiet(d) >= 5 && open(d)">{{ since(quiet(d)) }}</td>
+                </tr>
+              } @empty { <tr><td colspan="5"><div class="empty"><strong>{{ filtered() ? 'No match' : 'Nothing here yet' }}</strong>{{ filtered() ? 'Try another name or clear the filters.' : 'Start an enquiry or add a deal and it lands here.' }}</div></td></tr> }
+            </tbody>
+          </table>
+        </div>
+        } @else {
+        <div class="list phone">
+          @for (d of rows().slice(0, shown()); track d.id) {
+            <button type="button" class="li link" data-act="deal-open" (click)="sel.set(d)">
+              <span class="avatar">{{ d.name.slice(0,1) }}</span>
+              <span class="tx"><strong>{{ d.name }}</strong><span>{{ line(cast.moneyShort(d.value), d.nextStep, since(quiet(d))) }}</span></span>
+              <span class="pill" [class]="'pill ' + d.stage">{{ stageLabel(d.stage) }}</span>
+            </button>
+          } @empty { <div class="empty"><strong>{{ filtered() ? 'No match' : 'Nothing here yet' }}</strong>{{ filtered() ? 'Try another name or clear the filters.' : 'Start an enquiry or add a deal and it lands here.' }}</div> }
+        </div>
+        }
+        <bb-more [total]="rows().length" [shown]="min(shown(), rows().length)" (more)="shown.set(shown() + 30)"/>
       </div>
     }
 
-    <bb-drawer-add [open]="adding()" (closed)="adding.set(false)" (saved)="onAdded($event)"></bb-drawer-add>
-    <bb-deal-drawer [deal]="sel()" (closed)="sel.set(null)"/>`,
+    <bb-drawer-add [open]="adding()" (closed)="adding.set(false)" (saved)="onAdded($event)"/>
+    <bb-deal-drawer [deal]="sel()" (closed)="sel.set(null)" (changed)="sel.set($event)"/>`,
   styles: [`
-    .board{display:flex;gap:12px;overflow-x:auto;padding:2px 0 16px;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;min-height:60vh}
-    .col{flex:0 0 268px;display:flex;flex-direction:column;scroll-snap-align:start}
-    .col-h{display:flex;align-items:center;justify-content:space-between;padding:6px 6px 10px}
-    .col-t{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600}.col-t em{font-style:normal;color:var(--muted);font-weight:500;font-size:11px}
-    .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}.dot.talking{background:var(--blue)}.dot.quoted{background:var(--amber)}.dot.closing{background:var(--purple)}.dot.won{background:var(--green)}.dot.lost{background:var(--faint)}
-    .col-n{min-width:26px;height:22px;display:inline-flex;align-items:center;justify-content:center;padding:2px 8px 0;font-size:11px;line-height:1;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:999px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
-    .col-b{flex:1;display:flex;flex-direction:column;gap:8px;min-height:120px;padding:4px;border-radius:12px;transition:background var(--dur) var(--ease)}
-    .col-b.cdk-drop-list-dragging{background:var(--brand-soft-2);outline:2px dashed var(--brand);outline-offset:-2px}
-    .col.done{opacity:.85}
-    .dc{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 12px 12px 16px;cursor:grab;transition:border-color var(--dur) var(--ease)}
-    .dc:hover{border-color:var(--line-2)}.dc:active{cursor:grabbing}
-    .dc-rail{position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;background:var(--line-2)}
-    .dc-rail.talking{background:var(--blue)}.dc-rail.quoted{background:var(--amber)}.dc-rail.closing{background:var(--purple)}.dc-rail.won{background:var(--green)}
-    .dc strong{display:block;font-size:13.5px;font-weight:600;letter-spacing:-.01em}
-    .dc-sub{display:block;font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .dc-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
-    .dc-val{font-size:12px;font-weight:700;color:var(--green);font-variant-numeric:tabular-nums}
-    .dc-next{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--muted);--ico:12px}
-    .dc-warn{display:inline-block;margin-top:8px;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:6px;background:var(--amber-soft);color:var(--amber)}.dc-warn.red{background:var(--red-soft);color:var(--red)}
-    .cdk-drag-preview{box-shadow:var(--sh-lg);border-radius:12px;opacity:.95}.cdk-drag-placeholder{opacity:0}.dc-ph{min-height:64px;border:2px dashed var(--line-2);border-radius:12px}
-    .cdk-drag-animating{transition:transform 200ms var(--ease)}
-    .col-empty{padding:22px 10px;text-align:center;font-size:12px;color:var(--faint);border:1px dashed var(--line);border-radius:12px}
-    th.s{cursor:pointer;user-select:none}
-    .st{min-height:30px;padding:2px 30px 2px 11px;border-radius:999px;border:1px solid transparent;font-size:11.5px;font-weight:600;background:var(--surface-2);color:var(--ink-2);appearance:none;-webkit-appearance:none;
-      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236f7078' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:11px}
+    .th{display:inline-flex;align-items:center;min-height:32px;padding:0;border:0;background:none;font:inherit;color:inherit;cursor:pointer}
+    @media (hover:hover){.th:hover{color:var(--ink)}}
+    th.num .th{justify-content:flex-end}
+    .st{min-height:32px;padding:2px 30px 2px 11px;border-radius:999px;border:1px solid transparent;font-size:11.5px;font-weight:600;background-color:var(--surface-2);color:var(--ink-2);background-position:right 12px center;background-size:11px 11px}
     .st.talking{background-color:var(--blue-soft);color:var(--blue)}.st.quoted{background-color:var(--amber-soft);color:var(--amber)}.st.closing{background-color:var(--purple-soft);color:var(--purple)}.st.won{background-color:var(--green-soft);color:var(--green)}.st.lost{color:var(--muted)}
     .warn{color:var(--amber);font-weight:600}.due{font-style:normal;color:var(--muted)}
-    .acts{text-align:right}
-    @media (max-width:760px){.col{flex-basis:84vw}.board{scroll-snap-type:x mandatory}}`]
+    
+    tr:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+    `]
 })
 export class PipelineComponent implements OnInit, OnDestroy {
-  cast = inject(CastService); data = inject(DataService); private route = inject(ActivatedRoute);
-  waLink = waLink;
+  cast = inject(CastService); data = inject(DataService); screen = inject(ScreenService); private ask = inject(AskService); private route = inject(ActivatedRoute); private router = inject(Router);
+  min = Math.min; since = since; touch = matchMedia('(pointer:coarse)').matches;
   view = signal<'board' | 'list'>('board'); adding = signal(false); sel = signal<Deal | null>(null);
-  lf = signal('open'); sortKey = signal('value'); sortDir = signal<1 | -1>(-1);
-  listFilters: [string, string][] = [['open', 'Open'], ['won', 'Won'], ['lost', 'Lost'], ['all', 'All']];
+  q = signal(''); f = signal<Record<string, string>>({});
+  shown = signal(WINDOW); colShown = signal<Record<string, number>>({});
+  sortKey = signal('value'); sortDir = signal<1 | -1>(-1);
   stages = computed(() => this.cast.cast()?.stages || []);
+  defs = computed<FilterDef[]>(() => {
+    const d: FilterDef[] = [];
+    if (this.view() === 'list') d.push({ key: 'stage', label: 'Stage', all: 'Open deals', options: [{ value: 'all', label: 'Every deal' }, ...this.stages().map(s => ({ value: s.key, label: s.label })), { value: 'won', label: 'Won' }, { value: 'lost', label: 'Lost' }] });
+    d.push({ key: 'quiet', label: 'Last touch', all: 'Any time', options: [{ value: '5', label: 'Quiet 5 days or more' }, { value: '10', label: 'Quiet 10 days or more' }] });
+    return d;
+  });
+  private qs: any;
+  constructor(){ effect(() => { this.q(); this.f(); this.view(); this.shown.set(WINDOW); this.colShown.set({}); }); }
   ngOnInit(){
     try { const v = localStorage.getItem('bbos_pipe_view'); if (v === 'list' || v === 'board') this.view.set(v); } catch {}
-    this.qs = this.route.queryParams.subscribe(p => {
-      if (p['open']) { const d = this.data.deals().find(x => x.id === p['open']); if (d) this.sel.set(d); }
-      if (p['view'] === 'board' || p['view'] === 'list') this.setView(p['view']);
-      if (p['add']) this.adding.set(true);
-    });
+    this.qs = this.route.queryParams.subscribe(p => this.spend(p));
   }
-  private qs: any;
+  /* AN ADDRESS THAT CARRIES AN ORDER IS SPENT ONCE. "add", "open" and "view" in the address are taken
+     out of it before they are acted on, so a reload or a step Back never opens the same sheet twice. */
+  private async spend(p: any){
+    if (!p['view'] && !p['add'] && !p['open']) return;
+    await this.router.navigate([], { relativeTo: this.route, queryParams: { view: null, add: null, open: null }, queryParamsHandling: 'merge', replaceUrl: true });
+    if (p['view'] === 'board' || p['view'] === 'list') this.setView(p['view']);
+    if (p['open']) { const d = this.data.deals().find(x => x.id === p['open']); if (d) this.sel.set(d); }
+    if (p['add']) this.adding.set(true);
+  }
   ngOnDestroy(){ this.qs?.unsubscribe(); }
   setView(v: 'board' | 'list'){ this.view.set(v); try { localStorage.setItem('bbos_pipe_view', v); } catch {} }
   open(d: Deal){ return d.stage !== 'won' && d.stage !== 'lost'; }
   quiet(d: Deal){ return daysSince(d.lastContactAt || d.stageAt || d.createdAt); }
+  line(...p: (string | undefined)[]){ return p.filter(Boolean).join(' · '); }
+  stageLabel(k: Stage){ return this.stages().find(s => s.key === k)?.label || (k === 'won' ? 'Won' : k === 'lost' ? 'Lost' : k); }
+  filtered = computed(() => !!this.q().trim() || Object.values(this.f()).some(Boolean));
   sub = computed(() => { const n = this.data.openDeals().length, v = this.data.pipeValue();
-    return n ? `${n} ${n === 1 ? 'deal' : 'deals'} in progress${v ? ', worth ' + this.cast.money(v) : ''}${this.data.weighted() ? ', ' + this.cast.moneyShort(this.data.weighted()) + ' weighted' : ''}.` : 'Every deal you are working, by stage. Drag a card to move it.'; });
-  columns = computed(() => {
-    const cols: { key: Stage; label: string; prob: number | null; deals: Deal[]; value: number }[] = [];
-    const add = (key: Stage, label: string, prob: number | null) => { const deals = this.data.deals().filter(d => d.stage === key).sort((a, b) => (b.value || 0) - (a.value || 0)); cols.push({ key, label, prob, deals, value: deals.reduce((a, d) => a + (Number(d.value) || 0), 0) }); };
-    this.stages().forEach(s => add(s.key, s.label, s.prob)); add('won', 'Won', 100); add('lost', 'Lost', null); return cols;
-  });
-  async drop(ev: CdkDragDrop<Stage>){ const d: Deal = ev.item.data; const to = ev.container.data; if (d.stage === to) return; await this.move(d, to); }
-  async move(d: Deal, to: Stage){
-    if (to === 'lost') { const reason = prompt(`Why was ${d.name} lost?`, 'No response') ?? ''; if (reason === '' && !confirm('Mark lost without a reason?')) return; await this.data.moveDeal(d.id, 'lost', { lostReason: reason }); this.data.toast('Marked lost'); return; }
-    await this.data.moveDeal(d.id, to);
-    if (to === 'won') this.data.toast(`${d.name} is now a customer`, '/sales/customers', 'See them'); else this.data.toast('Moved to ' + (this.stages().find(s => s.key === to)?.label || to));
-  }
-  listRows = computed(() => { const f = this.lf(); const k = this.sortKey(), dir = this.sortDir();
-    return this.data.deals().filter(d => f === 'all' || (f === 'open' ? this.open(d) : d.stage === f)).sort((a, b) => {
+    return n ? `${n} ${n === 1 ? 'deal' : 'deals'} in progress${v ? ' worth ' + this.cast.money(v) : ''}${this.data.weighted() ? ' and ' + this.cast.moneyShort(this.data.weighted()) + ' weighted' : ''}.` : 'Every deal you are working, by stage. Drag a card to move it.'; });
+  /* what both views draw: the search and the filters applied once */
+  private base = computed(() => { const f = this.f(), q = this.q().trim().toLowerCase(), qd = Number(f['quiet'] || 0);
+    return this.data.deals().filter(d => (!qd || (this.open(d) && this.quiet(d) >= qd)) && (!q || [d.name, d.phone, d.wants, d.nextStep].join(' ').toLowerCase().includes(q))); });
+  rows = computed(() => { const st = this.f()['stage'] || ''; const k = this.sortKey(), dir = this.sortDir(); const list = this.view() === 'list';
+    return this.base().filter(d => !list || (st === 'all' ? true : st ? d.stage === st : this.open(d))).sort((a, b) => {
       const va = k === 'value' ? (a.value || 0) : k === 'quiet' ? this.quiet(a) : k === 'stage' ? this.stageIdx(a.stage) : a.name.toLowerCase();
       const vb = k === 'value' ? (b.value || 0) : k === 'quiet' ? this.quiet(b) : k === 'stage' ? this.stageIdx(b.stage) : b.name.toLowerCase();
       return (va < vb ? -1 : va > vb ? 1 : 0) * dir; }); });
+  columns = computed(() => {
+    const cols: { key: Stage; label: string; prob: number | null; deals: Deal[]; value: number }[] = []; const all = this.base();
+    const add = (key: Stage, label: string, prob: number | null) => { const deals = all.filter(d => d.stage === key).sort((a, b) => (b.value || 0) - (a.value || 0)); cols.push({ key, label, prob, deals, value: deals.reduce((a, d) => a + (Number(d.value) || 0), 0) }); };
+    this.stages().forEach(s => add(s.key, s.label, s.prob)); add('won', 'Won', 100); add('lost', 'Lost', null); return cols;
+  });
+  colMore(k: string){ this.colShown.set({ ...this.colShown(), [k]: (this.colShown()[k] || 15) + 15 }); }
+  async drop(ev: CdkDragDrop<Stage>){ const d: Deal = ev.item.data; const to = ev.container.data; if (d.stage === to) return; await this.move(d, to); }
+  /* a move never skips a rule: Lost asks why, Won makes the customer */
+  async move(d: Deal, to: Stage): Promise<boolean> {
+    if (d.stage === to) return true;
+    if (to === 'lost') { const reason = await this.ask.choose({ title: `Why was ${d.name} lost?`, body: 'The reason shows on the deal and in your numbers.', options: LOST_REASONS, no: 'Keep it open' }); if (!reason) return false; await this.data.moveDeal(d.id, 'lost', { lostReason: reason }); this.data.toast('Marked lost: ' + reason); return true; }
+    await this.data.moveDeal(d.id, to);
+    if (to === 'won') this.data.toast(`${d.name} is now a customer`, '/sales/customers', 'See them'); else this.data.toast('Moved to ' + this.stageLabel(to));
+    return true;
+  }
+  /* the stage box in a list row: a move that is called off puts the box back where it was */
+  async pick(d: Deal, ev: Event){ const el = ev.target as HTMLSelectElement; if (!(await this.move(d, el.value as Stage))) el.value = d.stage; }
   stageIdx(s: Stage){ const i = this.stages().findIndex(x => x.key === s); return i < 0 ? (s === 'won' ? 90 : 99) : i; }
   sortBy(k: string){ if (this.sortKey() === k) this.sortDir.set(this.sortDir() === 1 ? -1 : 1); else { this.sortKey.set(k); this.sortDir.set(k === 'name' ? 1 : -1); } }
   arrow(k: string){ return this.sortKey() === k ? (this.sortDir() === 1 ? ' ↑' : ' ↓') : ''; }
+  aria(k: string){ return this.sortKey() === k ? (this.sortDir() === 1 ? 'ascending' : 'descending') : null; }
   onAdded(d: Deal){ this.adding.set(false); this.sel.set(d); }
 }

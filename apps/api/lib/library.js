@@ -40,8 +40,16 @@ export function mergeLibrary(config, rows){
 export async function withLibrary(config){
   if (mode !== 'supabase' || !config?.slug) return config;
   try {
-    const { data, error } = await (await supa()).from('bb_library_items')
-      .select('id,kind,month,title,sub,url,sort,hidden,updated_at').eq('client_slug', config.slug);
-    return error ? config : mergeLibrary(config, data);
+    /* paged: the database hands over 1,000 rows at most and says nothing, and a library grows every month */
+    const db = await supa(), rows = [];
+    for (let off = 0; off < 100000; off += 1000) {
+      const { data, error } = await db.from('bb_library_items')
+        .select('id,kind,month,title,sub,url,sort,hidden,updated_at').eq('client_slug', config.slug)
+        .order('id', { ascending: true }).range(off, off + 999);
+      if (error) return config;
+      rows.push(...data);
+      if (data.length < 1000) break;
+    }
+    return mergeLibrary(config, rows);
   } catch { return config; }
 }

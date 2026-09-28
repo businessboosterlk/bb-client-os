@@ -6,7 +6,8 @@ import path from 'node:path';
 import { scryptSync, randomBytes, timingSafeEqual } from 'node:crypto';
 import { mode, supa } from './store.js';
 
-const CASTS = path.resolve(process.cwd(), '..', '..', 'casts');
+/* memory mode reads its clients from the cast files. A test names its own folder of test casts. */
+const CASTS = process.env.HUB_CASTS_DIR ? path.resolve(process.env.HUB_CASTS_DIR) : path.resolve(process.cwd(), '..', '..', 'casts');
 export const norm = s => String(s || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '').replace(/\s+/g, '');
 
 export function hashCode(code, salt = randomBytes(12).toString('hex')){
