@@ -5,7 +5,7 @@
    NAMED FILES: scripts, styles, fonts and pictures carry their build in their name, so the cache
    answers first. Client DATA is never cached here: it lives in the device copy the app keeps itself
    or behind the API, and a stale customer list served by a worker is worse than none. */
-const V = 'hub-v2';
+const V = 'hub-v3';
 self.addEventListener('install', e => { self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {

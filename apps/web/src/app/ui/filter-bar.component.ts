@@ -66,7 +66,9 @@ export interface FilterDef { key: string; label: string; all: string; options: {
     .fb-open{display:none;min-height:40px;gap:8px;flex:0 0 auto}
     .fb-n{min-width:20px;height:20px;display:inline-grid;place-items:center;padding:1px 6px 0;border-radius:999px;background:var(--brand);color:var(--on-accent);font-size:11px;font-weight:700;line-height:1}
     .fb-sheet{display:grid;gap:14px}
-    @media (max-width:760px){.fb-sels{display:none}.fb-open{display:inline-flex}.fb{flex-wrap:nowrap}.fb-q{flex:1 1 0}}`]
+    @media (max-width:760px){.fb-sels{display:none}.fb-open{display:inline-flex}.fb{flex-wrap:nowrap}.fb-q{flex:1 1 0}}
+    /* on the narrowest phones the search hint needs the room: the button keeps its icon, its count and its name for a screen reader */
+    @media (max-width:359px){.fb-open{width:44px;padding:0}.fb-open > span:not(.fb-n){display:none}.fb-open > bb-icon{margin-left:0!important}}`]
 })
 export class FilterBarComponent implements OnInit {
   @Input({ required: true }) state!: WritableSignal<Record<string, string>>;

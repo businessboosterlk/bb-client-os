@@ -110,7 +110,7 @@ const COLS: { key: EnquiryStatus; label: string; empty: string }[] = [
         <div class="field span"><label for="en-name">Who enquired</label><input id="en-name" type="text" [(ngModel)]="draft.name" placeholder="Nimal Perera" autocomplete="off" enterkeyhint="next" [attr.aria-invalid]="!!msg()"></div>
         <div class="field"><label for="en-phone">Their number</label><input id="en-phone" type="tel" inputmode="tel" [(ngModel)]="draft.phone" placeholder="077 123 4567" autocomplete="off" enterkeyhint="next"></div>
         <div class="field"><label for="en-src">Where from</label><select id="en-src" [(ngModel)]="draft.source"><option value="">Not sure</option>@for (s of sources(); track s) { <option [value]="s">{{ s }}</option> }</select></div>
-        <div class="field span"><label for="en-wants">What they want</label><input id="en-wants" type="text" [(ngModel)]="draft.wants" placeholder="20kg cinnamon a month, delivered" autocomplete="off" enterkeyhint="go" (keydown.enter)="save()"></div>
+        <div class="field span"><label for="en-wants">What they want</label><input id="en-wants" type="text" [(ngModel)]="draft.wants" placeholder="20kg cinnamon a month" autocomplete="off" enterkeyhint="go" (keydown.enter)="save()"></div>
       </div>
       </ng-template>
       <ng-template #foot>

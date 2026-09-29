@@ -14,7 +14,7 @@ const demo = JSON.parse(fs.readFileSync(path.join(ROOT, 'casts/demo.json'), 'utf
 for (const [slug, name] of [['alpha', 'Alpha Test Traders'], ['beta', 'Beta Test Bakers']]) fs.writeFileSync(path.join(dir, slug + '.json'), JSON.stringify({ ...demo, slug, name, short: name.split(' ')[0], aliases: [slug + '.test'], pin: undefined, data: { mode: 'api' } }));
 const port = await new Promise(res => { const s = net.createServer().listen(0, () => { const p = s.address().port; s.close(() => res(p)); }); });
 const SECRET = 'wall-test-secret-' + Math.random().toString(36).slice(2), CODE = 'WALL-TEST-CODE';
-const api = spawn(process.execPath, [path.join(ROOT, 'node_modules/next/dist/bin/next'), 'dev', '-p', String(port)], { cwd: path.join(ROOT, 'apps/api'), env: { ...process.env, DATA_MODE: 'memory', HUB_CASTS_DIR: dir, HUB_SECRET: SECRET, HUB_DEMO_CODE: CODE, BB_ADMIN_SECRET: 'wall-admin-' + SECRET, HUB_ORIGINS: 'https://businessboosterlk.github.io', NEXT_TELEMETRY_DISABLED: '1', SUPABASE_SERVICE_ROLE_KEY: '' }, stdio: ['ignore', 'pipe', 'pipe'] });
+const api = spawn(process.execPath, [path.join(ROOT, 'node_modules/next/dist/bin/next'), 'dev', '-p', String(port)], { cwd: path.join(ROOT, 'apps/api'), env: { ...process.env, DATA_MODE: 'memory', HUB_CASTS_DIR: dir, HUB_SECRET: SECRET, HUB_DEMO_CODE: CODE, BB_ADMIN_SECRET: 'wall-admin-' + SECRET, HUB_ORIGINS: 'https://businessboosterlk.github.io, https://hub.example.lk', HUB_LOCK_TRIES: '5', HUB_LOCK_SECONDS: '4', NEXT_TELEMETRY_DISABLED: '1', SUPABASE_SERVICE_ROLE_KEY: '' }, stdio: ['ignore', 'pipe', 'pipe'] });
 let log = ''; api.stdout.on('data', d => log += d); api.stderr.on('data', d => log += d);
 const B = 'http://127.0.0.1:' + port;
 const stop = code => { api.kill('SIGTERM'); fs.rmSync(dir, { recursive: true, force: true }); process.exit(code); };
@@ -88,8 +88,31 @@ const ids = [...p1.json, ...p2.json, ...p3.json].map(x => x.id);
 check('the real API pages: three pages of five hold twelve different rows and the last page is short', p1.json.length === 5 && p2.json.length === 5 && p3.json.length === 2 && new Set(ids).size === 12, [p1.json.length, p2.json.length, p3.json.length]);
 check('the real API refuses a silly limit and a negative offset without an error', big.status === 200 && big.json.length === 12, [big.status, big.json?.length]);
 /* who may call from a browser */
-const cors = await fetch(B + '/api/login', { method: 'OPTIONS', headers: { Origin: 'https://evil.example', 'Access-Control-Request-Method': 'POST' } });
-check('a page on another site is not named as an allowed caller', cors.headers.get('access-control-allow-origin') !== '*' && cors.headers.get('access-control-allow-origin') !== 'https://evil.example', cors.headers.get('access-control-allow-origin'));
+/* WHO MAY CALL FROM A BROWSER (door finding 2). Every address on the allowed list is allowed, not only
+   the first, and an address that is not on the list is never named. */
+const from = async (origin, method = 'OPTIONS') => { const r = await fetch(B + '/api/login', { method, headers: { Origin: origin, 'Access-Control-Request-Method': 'POST', 'Content-Type': 'application/json' }, body: method === 'POST' ? JSON.stringify({ business: 'alpha', code: CODE }) : undefined }); return { status: r.status, allow: r.headers.get('access-control-allow-origin'), vary: r.headers.get('vary') || '', methods: r.headers.get('access-control-allow-methods') || '' }; };
+const o1 = await from('https://businessboosterlk.github.io'), o2 = await from('https://hub.example.lk'), o3 = await from('https://evil.example'), o4 = await from('https://hub.example.lk', 'POST'), o5 = await from('https://hub.example.lk.evil.example');
+check('the first address on the allowed list may call', o1.allow === 'https://businessboosterlk.github.io' && o1.status === 204, o1);
+check('the SECOND address on the allowed list may call too, on the question and on the real request', o2.allow === 'https://hub.example.lk' && o4.allow === 'https://hub.example.lk' && o4.status === 200, [o2, o4]);
+check('a page on another site is never named as an allowed caller, nor one whose address only starts like a real one', !o3.allow && !o5.allow, [o3.allow, o5.allow]);
+check('the answer says it depends on who asked, so nothing in between hands one caller\'s answer to another', /origin/i.test(o2.vary) && /POST/.test(o2.methods), [o2.vary, o2.methods]);
+
+/* A LOCK AFTER REPEATED WRONG CODES (door finding 3). Five tries here, four seconds: the test's own
+   numbers, set for this run. After the last wrong code even the RIGHT code is refused until the lock
+   runs out, the refusal says so in words and another business at the same door is untouched. */
+const tries = []; for (let i = 0; i < 5; i++) tries.push((await call('POST', '/api/login', { body: { business: 'beta', code: 'WRONG-' + i } })).status);
+const locked = await call('POST', '/api/login', { body: { business: 'beta', code: CODE } });
+const viaAlias = await call('POST', '/api/login', { body: { business: 'https://www.beta.test/', code: CODE } });
+const other = await call('POST', '/api/login', { body: { business: 'alpha', code: CODE } });
+check('five wrong codes are each refused as a wrong code', tries.every(t => t === 401), tries);
+check('after them the door is locked: even the right code is refused, and the refusal says why and for how long', locked.status === 429 && /too many/i.test(locked.json?.error || '') && !locked.json?.token, [locked.status, locked.json?.error]);
+check('the lock is on the business, however its name is typed', viaAlias.status === 429, viaAlias.status);
+check('another business at the same door is not locked', other.status === 200, other.status);
+await new Promise(z => setTimeout(z, 4600));
+const after = await call('POST', '/api/login', { body: { business: 'beta', code: CODE } });
+check('when the lock runs out the right code opens the door again', after.status === 200 && !!after.json?.token, after.status);
+const oneWrong = await call('POST', '/api/login', { body: { business: 'beta', code: 'WRONG' } }), thenRight = await call('POST', '/api/login', { body: { business: 'beta', code: CODE } });
+check('a right code wipes the count, so one slip later does not lock anyone out', oneWrong.status === 401 && thenRight.status === 200, [oneWrong.status, thenRight.status]);
 
 /* READ FROM THE CODE, because memory mode cannot reach it: the database door */
 const clients = fs.readFileSync(path.join(ROOT, 'apps/api/lib/clients.js'), 'utf8');

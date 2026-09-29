@@ -53,9 +53,7 @@ export async function context(browser, { width = 390, height = 844, desk = false
     ? { viewport: { width, height: 900 }, deviceScaleFactor: 2, colorScheme: dark ? 'dark' : 'light' }
     : { viewport: { width, height }, deviceScaleFactor: 3, hasTouch: true, isMobile: true, userAgent: PHONE_UA, colorScheme: dark ? 'dark' : 'light' });
   await c.addInitScript(([s, d]) => { try { if (s && !localStorage.getItem('bbos_demo')) localStorage.setItem('bbos_demo', s); if (!localStorage.getItem('hub_theme')) localStorage.setItem('hub_theme', d ? 'dark' : 'light'); } catch (e) {} }, [seed ? JSON.stringify(seed) : '', dark]);
-  /* layout runs stand the system font in so they never wait on another server. A run that measures
-     INK asks for the real font: measuring a stand-in is measuring the wrong surface. */
-  if (!fonts) await c.route('**/fonts.g*/**', r => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
+  /* the font is in the build since 29 Sep 2026, so every run draws with the real letters */
   return c;
 }
 /* the door, walked: business, code, Enter */
