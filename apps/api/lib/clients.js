@@ -36,6 +36,7 @@ async function fileClients(){
 }
 export async function findClient(typed){
   const t = norm(typed);
+  if (!/^[a-z0-9.-]{1,80}$/.test(t)) return null;   /* a name is letters, digits, dots and hyphens; anything else never reaches the filter below (door finding 1, 28 Sep 2026) */
   if (mode !== 'supabase') return (await fileClients()).find(c => c.slug === t || c.aliases.map(norm).includes(t)) || null;
   const s = await supa();
   const { data, error } = await s.from('os_clients').select('*').eq('active', true).or(`slug.eq.${t},aliases.cs.{${t}}`).limit(1);

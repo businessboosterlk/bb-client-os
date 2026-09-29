@@ -32,6 +32,13 @@ check('door: a refusal is held back for over half a second', slow >= 550, slow +
 const A = await call('POST', '/api/login', { body: { business: 'alpha.test', code: CODE } }), Bt = await call('POST', '/api/login', { body: { business: 'beta', code: CODE } });
 check('door: each test client signs in and is given its own token and its own settings', A.status === 200 && Bt.status === 200 && A.json.slug === 'alpha' && Bt.json.slug === 'beta' && A.json.cast.name === 'Alpha Test Traders' && A.json.token !== Bt.json.token, [A.status, Bt.status]);
 check('door: the settings sent to a seat carry no code, no PIN and no list of people', !/"pin"|"seats"|"hash"|"salt"|"leads"|"customers"\s*:\s*\[/.test(JSON.stringify(A.json)), Object.keys(A.json.cast || {}).join(','));
+/* door finding 1, 28 Sep 2026: a typed name reached the database filter as typed. A name that carries filter syntax is refused before any lookup. */
+const shaped = await call('POST', '/api/login', { body: { business: 'x,slug.neq.x', code: CODE } }), dotted = await call('POST', '/api/login', { body: { business: 'https://www.Alpha.Test/about', code: CODE } });
+check('door: a name carrying filter syntax is refused, while a real name typed as a web address still signs in', shaped.status === 401 && shaped.text === wrongName.text && dotted.status === 200 && dotted.json.slug === 'alpha', [shaped.status, dotted.status]);
+/* memory mode never builds the database filter, so the probe above passes with or without the rule. Assert the SOURCE ORDER instead: the rule must run before the one place a typed name meets a filter. */
+{ const src = fs.readFileSync(path.join(ROOT, 'apps/api/lib/clients.js'), 'utf8'); const fn = src.slice(src.indexOf('export async function findClient'), src.indexOf('export async function loadCast'));
+  const rule = fn.search(/if \(!\/\^\[a-z0-9\.-\]\{1,80\}\$\/\.test\(t\)\) return null;/), filter = fn.indexOf('.or(');
+  check('door: in database mode the name rule runs before the typed name reaches the filter', rule > -1 && filter > -1 && rule < filter, { rule, filter }); }
 const ta = A.json.token, tb = Bt.json.token;
 
 /* A writes. B tries everything. */
