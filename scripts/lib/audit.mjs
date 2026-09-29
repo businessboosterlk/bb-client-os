@@ -48,6 +48,17 @@ export const AUDIT = () => {
     const w = kids.map(k => Math.round(k.getBoundingClientRect().width)); if (new Set(w).size > 1) hits.push('RAGGED BAR: rows of ' + [...new Set(w)].join(', ') + 'px');
     bar.querySelectorAll('.pair').forEach(pr => { const pw = [...pr.children].filter(vis).map(k => Math.round(k.getBoundingClientRect().width)); if (Math.max(...pw) - Math.min(...pw) > 1) hits.push('UNEQUAL PAIR: ' + pw.join(', ') + 'px'); });
     [...bar.querySelectorAll('.btn')].filter(vis).forEach(b => { if (b.getBoundingClientRect().height < 44) hits.push('BAR BUTTON UNDER 44px: ' + name(b)); }); });
+  /* WORDS THAT LEAVE THEIR BOX, and words cut with no mark. Caught by eye on the Workshop OS, 29 Sep
+     2026: a money figure ran past the edge of its tile and activity lines were cut at the card's
+     edge with no ellipsis. A box is found by its own background and corner, never by a class name. */
+  const isBox = el => { const c = getComputedStyle(el); if (parseFloat(c.borderTopLeftRadius) < 8 || clear(c.backgroundColor)) return false; const r = el.getBoundingClientRect(); return r.width >= 44 && r.height >= 24; };
+  [...root.querySelectorAll('*')].filter(e => e.children.length === 0 && e.textContent.trim().length > 1 && vis(e) && !e.closest('svg') && !scroller(e)).forEach(e => {
+    let box = e.parentElement; while (box && box !== root && !isBox(box)) box = box.parentElement; if (!box || box === root) return;
+    const range = document.createRange(); range.selectNodeContents(e); const r = range.getBoundingClientRect(), b = box.getBoundingClientRect(); if (r.width < 2) return;
+    const c = getComputedStyle(e); const marked = c.textOverflow === 'ellipsis' && c.overflow !== 'visible';
+    let clip = e; let clipped = false; for (let n = e; n && n !== box.parentElement; n = n.parentElement) { const k = getComputedStyle(n); if (k.overflowX !== 'visible') { const nr = n.getBoundingClientRect(); if (r.right > nr.right + 1) { clipped = true; clip = n; } break; } }
+    if (clipped && !marked) hits.push('TEXT CUT WITH NO MARK by ' + Math.round(r.right - clip.getBoundingClientRect().right) + 'px: ' + name(e));
+    else if (!clipped && r.right > b.right - 2 && getComputedStyle(box).overflowX === 'visible') hits.push('TEXT PAST THE EDGE OF ITS BOX by ' + Math.round(r.right - b.right + 2) + 'px: ' + name(e)); });
   const torn = [...document.images].filter(i => i.complete && i.naturalWidth === 0 && getComputedStyle(i).display !== 'none' && i.getBoundingClientRect().width > 0).length;
   if (torn) hits.push('TORN PICTURE: ' + torn + ' failed to load');
   if (document.documentElement.scrollWidth > innerWidth + 1) hits.push('PAGE SCROLLS SIDEWAYS by ' + (document.documentElement.scrollWidth - innerWidth) + 'px');

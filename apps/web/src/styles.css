@@ -319,3 +319,9 @@ body.sheet-open{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .col-more{width:100%;min-height:40px}
 @media (max-width:760px){.col{flex-basis:84vw}.board{scroll-snap-type:x mandatory;margin:0 -16px;padding:2px 16px 16px;scroll-padding:0 16px}}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* A MONEY FIGURE IN A TILE stays inside the tile on the narrowest phone. "LKR 615K" at 26px ran up to
+   7px past the edge at 320px (found 29 Sep 2026 by the audit rule written for the Workshop OS). */
+.kpi .k-val{white-space:nowrap}
+@media (max-width:400px){.kpi .k-val{font-size:22px}.kpi .card{padding:14px 14px}}
+@media (max-width:340px){.kpi .k-val{font-size:19px}.kpi .k-val.src,.kpi .k-val.since{font-size:16px}}
