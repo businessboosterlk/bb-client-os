@@ -2,7 +2,6 @@
   "slug": "demo",
   "name": "Cinnamon & Co",
   "short": "Cinnamon",
-  "updated": "30 August 2026",
   "brand": {
     "hex": "#8a5a2b",
     "logo": "assets/clients/demo.svg"
@@ -203,7 +202,12 @@
         "g": "Guardrails"
       }
     ],
-    "factsReviewed": "30 August 2026"
+    "factsReviewed": "30 August 2026",
+    "note": {
+      "text": "August was the launch month. The signature blend film is the strongest thing we have made for you so far. The morning ritual carousel is the post people kept saving. September's plan is in Documents.",
+      "by": "Your Business Booster team",
+      "date": "30 August 2026"
+    }
   },
   "aliases": [
     "cinnamon.lk",
