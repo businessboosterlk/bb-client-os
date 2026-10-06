@@ -17,7 +17,7 @@ const LINE = {                       /* the Hub's name      Lucide's file */
   quote: 'file-text', trend: 'trending-up', money: 'circle-dollar-sign', flame: 'flame', alert: 'triangle-alert',
   lock: 'lock', board: 'columns-3', list: 'list', menu: 'menu', out: 'log-out', grid: 'layout-grid',
   ext: 'external-link', trash: 'trash-2', edit: 'pencil', sun: 'sun', moon: 'moon',
-  filter: 'sliders-horizontal', offline: 'wifi-off', more: 'ellipsis', refresh: 'refresh-cw', share: 'share'
+  filter: 'sliders-horizontal', offline: 'wifi-off', more: 'ellipsis', refresh: 'refresh-cw', share: 'share', play: 'play', smartphone: 'smartphone'
 };
 const BRAND = { wa: 'whatsapp' };
 const inner = svg => svg.replace(/<!--[\s\S]*?-->/g, '').replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').replace(/<title>.*?<\/title>/, '').replace(/\s*\n\s*/g, '').replace(/\s+\/>/g, '/>').trim();

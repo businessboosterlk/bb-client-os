@@ -1,5 +1,7 @@
 import { CastService } from './cast.service';
 import { DataService, waLink } from './data.service';
+import { lead, updatedLine, newestAdded, searchLibrary, shouldHint, isNewSince, emptyLine, hasAnything } from './library';
+import { demoSeed } from './demo-seed';
 
 /* ?selftest runs the harness on THIS cast in THIS browser and prints one line per
    check. It uses a throwaway store key so a client's real rows are never touched,
@@ -160,6 +162,24 @@ export async function runSelftest(cast: CastService, data: DataService){
     await data.reload();
   }
   } else if (c) { ok('api mode: rows live on the server, the harness never writes into a client book', data.mode() === 'api', 'mode ' + data.mode()); }
+  /* ── THE LIBRARY, READ HONESTLY (6 Oct 2026). Pure rules probed on real and made-up libraries. ── */
+  if (c) {
+    const L = c.library, empty = { hello: '', sub: '', months: [], docs: [], facts: [] };
+    const shown = (document.querySelector('[data-upd]')?.textContent || '').trim();
+    ok('the Updated line is the newest real change, never a date typed into a file', !location.hash.includes('/library/month') || shown === updatedLine(L), shown + ' against ' + updatedLine(L));
+    ok('an empty library says so in one line and never shows three zeros', updatedLine(empty) === 'Nothing added yet' && lead(empty) === null && !hasAnything(empty) && /first month/.test(emptyLine('X')) && !/\b0 videos\b/.test(emptyLine('X')));
+    const l = lead(L);
+    ok('the one thing shown first is the newest report, else the newest film', !hasAnything(L) || (!!l && (L.docs.some(d => /report/i.test(d.kind || '')) ? l.hit.icon === 'doc' && /report/i.test(l.hit.item.kind || '') : l.hit.icon === 'video' || l.hit.icon === 'post')), l ? l.eyebrow : 'no lead');
+    ok('a library home with content carries the lead card, with content it has one and only one', !location.hash.includes('/library/month') || document.querySelectorAll('.lead').length === (hasAnything(L) ? 1 : 0));
+    const dated = newestAdded(L);
+    ok('the newest change is the latest added date of any item', !dated || (/^\d{4}-\d{2}-\d{2}/.test(dated) && [...L.months.flatMap(m => [...m.videos, ...m.posts]), ...L.docs].every(i => (i.added || '') <= dated)));
+    ok('new since your last visit is measured against the stored stamp, and the first visit counts 14 days', isNewSince('2026-09-02', '2026-09-01T10:00:00Z') && !isNewSince('2026-08-30', '2026-09-01T10:00:00Z') && isNewSince(new Date().toISOString().slice(0, 10), '') && !isNewSince('2020-01-01', '') && !isNewSince(undefined, ''));
+    const hitTitle = L.months[0]?.videos[0]?.title || L.docs[0]?.title || '';
+    ok('one search reaches titles, kinds and business facts', !hitTitle || (searchLibrary(L, hitTitle.slice(0, 6)).hits.some(h => h.item.title === hitTitle) && searchLibrary(L, 'zzqqxx').hits.length === 0 && (!L.facts.length || searchLibrary(L, L.facts[0].k.slice(0, 5)).facts.length >= 1) && searchLibrary(L, 'a').hits.length === 0));
+    ok('the install hint shows on a touch screen that is not the app, never once dismissed or installed, never inside WhatsApp', shouldHint(true, false, false, 'direct') && !shouldHint(false, false, false, 'direct') && !shouldHint(true, true, false, 'direct') && !shouldHint(true, false, true, 'direct') && !shouldHint(true, false, false, 'wa'));
+    const seed = demoSeed(), seedRows = Object.values(seed).flat();
+    ok('the demo book starts with a working month, no phone number anywhere in it', seedRows.length >= 12 && !/\b0?7\d[\d\s-]{7,}\b/.test(JSON.stringify(seed)) && seed.deals.some(d => d.stage === 'won') && seed.customers.length >= 1, seedRows.length + ' rows');
+  }
   const pass = T.filter(t => t[0]).length;
   console.log(`BBOS SELFTEST: ${pass}/${T.length} passed`);
   T.forEach(t => console.log((t[0] ? 'PASS ' : 'FAIL ') + t[1] + (t[2] ? ' (' + t[2] + ')' : '')));

@@ -325,3 +325,20 @@ body.sheet-open{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .kpi .k-val{white-space:nowrap}
 @media (max-width:400px){.kpi .k-val{font-size:22px}.kpi .card{padding:14px 14px}}
 @media (max-width:340px){.kpi .k-val{font-size:19px}.kpi .k-val.src,.kpi .k-val.since{font-size:16px}}
+
+/* THE LEAD FILM on the Videos screen: one large card on the client's colour, the rest in the list.
+   Taken from the single-file Client Library's featured film (1 Sep 2026), the screen's one brand moment. */
+.feat{display:block;border-radius:16px;overflow:hidden;background:var(--surface);border:1px solid var(--line);margin-bottom:12px;transition:border-color var(--dur) var(--ease)}
+@media (hover:hover){.feat:hover{border-color:var(--line-2)}}.feat:active .feat-play{transform:scale(.94)}
+.feat-media{display:grid;place-items:center;aspect-ratio:16/9;max-height:260px;background:linear-gradient(135deg,var(--brand-dark),var(--brand) 55%,var(--brand-lite))}
+.feat-play{width:68px;height:68px;border-radius:50%;background:rgba(255,255,255,.22);color:#fff;display:grid;place-items:center;--ico:30px;transition:transform 160ms var(--ease)}
+/* OPTICAL: a triangle's ink sits high and left of its frame's centre; measured by scripts/ui-precision.mjs */
+.feat-play bb-icon{transform:translate(.4px,.6px)}
+.feat-tx{display:block;padding:14px 18px 16px}.feat-tx em{display:block;font-style:normal;font-size:12px;color:var(--muted);font-weight:500}
+.feat-tx strong{display:block;font-size:17px;font-weight:700;letter-spacing:-.01em;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* OPTICAL: the building glyph's thin roof line reads a quarter pixel low in a 36px tile at 2x (ui-precision, 6 Oct 2026) */
+@media (min-width:1020px){.list .li .ic bb-icon[name="brain"]{transform:translateY(-.25px)}}
+/* on a desk the lead film sits beside its words, never a small picture over an empty card */
+/* OPTICAL: the picture is 336 by 190. An EVEN height, so a 68px circle centred in it sits on a whole pixel
+   ((190 - 68) / 2 = 61); at 189 it sat on a half pixel and the play glyph read 1px low (ui-precision, 6 Oct 2026) */
+@media (min-width:1020px){.feat{display:grid;grid-template-columns:336px minmax(0,1fr);align-items:start}.feat-media{aspect-ratio:auto;max-height:none;height:190px}.feat-tx{display:flex;flex-direction:column;justify-content:center;min-height:190px;padding:18px 24px}.feat-tx strong{font-size:19px;white-space:normal}}

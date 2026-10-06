@@ -25,6 +25,8 @@ export interface StageDef { key: Stage; label: string; prob: number; }
 export interface LibItem { title: string; note?: string; date?: string; platform?: string; kind?: string; href: string; added?: string; }
 export interface LibMonth { id: string; label: string; videos: LibItem[]; posts: LibItem[]; }
 export interface Fact { k: string; v: string; g?: string; }
+/* a line from the team, written for this client this month: the cheapest warmth in the product */
+export interface LibNote { text: string; by?: string; date?: string; }
 
 export interface Cast {
   slug: string; aliases?: string[]; name: string; short?: string; updated?: string;
@@ -38,5 +40,5 @@ export interface Cast {
   users: { name: string; role: string }[];
   pin?: string;
   data: { mode: 'local' | 'api'; api?: string };
-  library: { hello: string; sub: string; months: LibMonth[]; docs: LibItem[]; facts: Fact[]; factsReviewed?: string };
+  library: { hello: string; sub: string; months: LibMonth[]; docs: LibItem[]; facts: Fact[]; factsReviewed?: string; note?: LibNote };
 }

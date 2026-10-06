@@ -1,4 +1,5 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, signal, OnInit, OnDestroy } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { CastService } from '../../core/cast.service';
 
 /* The business profile: what BB understands about the client, grouped, with the
@@ -12,14 +13,19 @@ import { CastService } from '../../core/cast.service';
       @if (fix()) { <div class="ph-right"><a class="btn ghost" data-act="business-update-top" [href]="fix()" target="_blank" rel="noreferrer">Update a detail</a></div> }</div>
     @for (g of groups(); track g.name) {
       <div class="sec"><div class="sec-head"><h3>{{ g.name }}</h3><span>{{ g.facts.length }}</span></div>
-        <div class="card">@for (f of g.facts; track f.k) { <div class="fact"><span>{{ f.k }}</span><strong>{{ f.v }}</strong></div> }</div></div>
+        <div class="card">@for (f of g.facts; track f.k) { <div class="fact" [class.lit]="lit() === f.k" [attr.data-fact]="f.k"><span>{{ f.k }}</span><strong>{{ f.v }}</strong></div> }</div></div>
     } @empty { <div class="card empty"><strong>Your profile is on its way</strong>Once the intake is back, what we know about your business appears here.</div> }`,
   styles: [`.fact{display:grid;grid-template-columns:150px 1fr;gap:12px;padding:14px 16px;border-top:1px solid var(--line)}.fact:first-child{border-top:0}
     .fact span{font-size:12px;font-weight:600;color:var(--muted)}.fact strong{font-weight:500;font-size:14px}
+    .fact.lit{background:var(--brand-soft)}
     @media (max-width:640px){.fact{grid-template-columns:1fr;gap:3px}}`]
 })
-export class BusinessComponent {
-  cast = inject(CastService);
+export class BusinessComponent implements OnInit, OnDestroy {
+  cast = inject(CastService); private route = inject(ActivatedRoute); private qs: any;
+  /* a fact reached from search is lit and scrolled to, so the eye lands on the answer */
+  lit = signal('');
+  ngOnInit(){ this.qs = this.route.queryParams.subscribe(p => { const f = p['f'] || ''; this.lit.set(f); if (f) setTimeout(() => document.querySelector(`[data-fact="${CSS.escape(f)}"]`)?.scrollIntoView({ block: 'center' }), 60); }); }
+  ngOnDestroy(){ this.qs?.unsubscribe(); }
   L = computed(() => this.cast.cast()!.library);
   groups = computed(() => { const m = new Map<string, any[]>(); this.L().facts.forEach(f => { const g = f.g || 'Business'; if (!m.has(g)) m.set(g, []); m.get(g)!.push(f); }); return [...m].map(([name, facts]) => ({ name, facts })); });
   fix = computed(() => this.cast.whatsapp(`Hello, this is ${this.cast.cast()?.name} [Hub]. One of the business details needs updating: `));

@@ -103,6 +103,15 @@ async function world(desk) {
     check('quick action: a month in the Videos menu shows that month', s.hash === '#/library/videos' && /m=/.test(s.q) && !s.menu, s);
     await press('videos-month', { nth: 0 }); check('videos: a month chip marks itself as pressed', (await loc('videos-month').nth(0).getAttribute('aria-pressed')) === 'true');
     const n0 = outside.length; await press('library-open'); await settle(500); check('library: a row opens its file outside the app', outside.length === n0 + 1, outside.slice(-1)[0]);
+    await go('#/library/videos'); const nf = outside.length; await press('video-feature'); await settle(500); check('videos: the lead film card opens its file outside the app', outside.length === nf + 1, outside.slice(-1)[0]);
+    await go('#/library/month'); const nl = outside.length; await press('lead-open'); await settle(500); check('this month: the lead card opens the newest report outside the app', outside.length === nl + 1 && /demo-report/.test(outside.slice(-1)[0] || ''), outside.slice(-1)[0]);
+    await type('[data-act="library-search"]', 'roast'); await p.locator('[data-act="library-search"]:visible').press('Enter'); await settle(300);
+    let hits = await p.locator('[data-search-results] .li').count(); check('search: typing filters the whole library and the sections step aside', hits >= 1 && !(await p.locator('[data-act="month-videos"]').count()), hits);
+    await type('[data-act="library-search"]', 'provenance'); await settle(300); await press('search-fact'); s = await state();
+    check('search: a business fact result lands on Your business with the fact named in the address', s.hash === '#/library/business' && /f=/.test(s.q), s);
+    await back(); s = await state(); check('search: Back from a fact result returns to the library home', s.hash === '#/library/month', s);
+    await type('[data-act="library-search"]', ''); await settle(200);
+    if (await loc('hint-dismiss').count() || !(await p.evaluate(() => matchMedia('(hover:hover)').matches))) { if (await loc('hint-dismiss').count()) { await press('hint-dismiss'); check('install hint: dismissed once, gone for good', !(await loc('hint-dismiss').count()) && (await p.evaluate(() => localStorage.getItem('hub_hint_demo'))) === '1'); } else check('install hint: shows on a phone that has not installed the app', false, 'no hint on screen'); }
     await press('tab-posts'); await press('menu-posts-month'); await press('posts-month', { nth: 1 }); s = await state();
     check('posts: the tab, its menu and the month chip all land on Posts', s.hash === '#/library/posts', s);
     await press('tab-docs'); s = await state(); check('tab bar: Documents has no quick actions, so the tap only goes there', s.hash === '#/library/docs' && !s.menu, s);

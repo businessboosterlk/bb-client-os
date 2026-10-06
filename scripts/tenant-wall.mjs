@@ -64,6 +64,11 @@ await probe('the slug in capitals', [401, 404], 'GET', '/api/ALPHA/enquiries', {
 await probe('a slug that climbs out of the folder', [400, 401, 404], 'GET', '/api/..%2Falpha/enquiries', { token: tb });
 await probe('a table that is not one of the five', [404], 'GET', '/api/alpha/os_clients', { token: ta });
 await probe('the clients table by its real name', [404], 'GET', '/api/alpha/clients', { token: ta });
+await probe('no token: a visit event into Alpha', [401], 'POST', '/api/alpha/seen', { body: { what: 'open', src: 'direct' } });
+await probe('B\'s token writing a visit event into Alpha', [401], 'POST', '/api/alpha/seen', { token: tb, body: { what: 'open', src: 'direct' } });
+await probe('A\'s token reading its own visit events through the table door', [404], 'GET', '/api/alpha/events', { token: ta });
+await probe('A\'s token reading its own visit events through BB\'s door', [401, 403], 'GET', '/api/bb/events?slug=alpha', { token: ta });
+await probe('a visit event with a nonsense kind', [400], 'POST', '/api/alpha/seen', { token: ta, body: { what: 'delete', src: 'direct' } });
 await probe('the BB onboarding door with no key', [401, 403], 'GET', '/api/bb/clients');
 await probe('the BB onboarding door with a client\'s token as the key', [401, 403], 'GET', '/api/bb/clients', { token: ta, headers: { 'X-BB-Admin': ta } });
 await probe('the BB onboarding door, writing, with no key', [401, 403], 'POST', '/api/bb/clients', { body: { slug: 'gamma', name: 'Gamma' } });

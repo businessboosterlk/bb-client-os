@@ -4,6 +4,7 @@ import { SessionService } from './session.service';
 import { Enquiry, Deal, Customer, Task, Activity, Table, Stage } from './models';
 import { DraftService } from './draft.service';
 import { copyGet, copyPut, copyClear } from './device-copy';
+import { demoSeed, DEMO_SEEDED_FLAG } from './demo-seed';
 
 /* The data layer. One interface, two adapters, chosen by the cast:
      local  keeps everything in this browser (demo and the free tier)
@@ -139,7 +140,10 @@ export class DataService {
     this.mode.set(api ? 'api' : 'local');
     this.offline.set(false);
     if (!api) {
-      this.adapter = new LocalAdapter('bbos_' + c.slug);
+      const key = 'bbos_' + c.slug;
+      /* the demo book is never empty on a first open: see core/demo-seed.ts */
+      try { if (c.slug === 'demo' && localStorage.getItem(key) === null && localStorage.getItem(DEMO_SEEDED_FLAG) !== '1') { localStorage.setItem(key, JSON.stringify(demoSeed())); localStorage.setItem(DEMO_SEEDED_FLAG, '1'); } } catch {}
+      this.adapter = new LocalAdapter(key);
       try { await this.reload(); } catch {}
       this.paintedFrom.set('local'); this.ready.set(true); return;
     }

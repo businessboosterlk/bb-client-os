@@ -32,6 +32,14 @@ for (const s of ['icon-centre.mjs', 'build-icons.mjs']) {
 /* what is meant to be centred, screen by screen. open: a step taken before the reading. */
 const tabs = [0, 1, 2, 3, 4].map(i => ({ name: `tab bar icon ${i + 1}`, sel: '.bm-btn', index: i, inset: 6, desk: false, hide: '.dot' }));
 const plan = [
+  /* the library home and the Videos screen (6 Oct 2026): the lead card's glyph, the row icon tiles, the lead film's play */
+  ['/library/month', [
+    { name: 'lead card icon in its tile', sel: '.lead-ic', inset: 2 },
+    { name: 'library row icon tile: Videos', sel: '.list .li .ic', index: 0, inset: 2 },
+    { name: 'library row icon tile: Your business', sel: '.list .li .ic', index: 3, inset: 2 },
+    { name: 'library search icon in its field', sel: '.lib-q bb-icon', inset: 1 } ]],
+  ['/library/videos', [
+    { name: 'the lead film play glyph in its circle', sel: '.feat-play', shape: 'circle', inset: 2 } ]],
   ['/sales/pipeline?view=board', [
     { name: 'rail badge number: Enquiries', text: true, sel: '.rail .nb', index: 0, inset: 1, phone: false, baseline: true },
     { name: 'rail badge number: Pipeline', text: true, sel: '.rail .nb', index: 1, inset: 1, phone: false, baseline: true },

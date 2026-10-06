@@ -2,6 +2,7 @@ import { Component, inject, computed, signal, OnInit, OnDestroy } from '@angular
 import { ActivatedRoute } from '@angular/router';
 import { CastService } from '../../core/cast.service';
 import { LibRowComponent, monthLabel } from './lib.shared';
+import { readSeen } from '../../core/library';
 import { MoreComponent, WINDOW } from '../../ui/more.component';
 
 @Component({
@@ -13,7 +14,7 @@ import { MoreComponent, WINDOW } from '../../ui/more.component';
     @if (months().length) {
       <div class="chips" style="margin-bottom:14px">@for (m of months(); track m.id) { <button type="button" data-act="posts-month" [class.on]="sel() === m.id" [attr.aria-pressed]="sel() === m.id" (click)="pick(m.id)">{{ label(m) }}</button> }</div>
       <div class="card list">
-        @for (p of (current()?.posts || []).slice(0, shown()); track p.href) { <bb-lib-row [item]="p" icon="post"/> }
+        @for (p of (current()?.posts || []).slice(0, shown()); track p.href) { <bb-lib-row [item]="p" icon="post" [ref]="ref"/> }
         @empty { <div class="empty">No posts in {{ current()?.label }}.</div> }
         <bb-more [total]="(current()?.posts || []).length" [shown]="min(shown(), (current()?.posts || []).length)" (more)="shown.set(shown() + 30)"/>
       </div>
@@ -21,7 +22,7 @@ import { MoreComponent, WINDOW } from '../../ui/more.component';
 })
 export class PostsComponent implements OnInit, OnDestroy {
   cast = inject(CastService); private route = inject(ActivatedRoute);
-  private qs: any; shown = signal(WINDOW); min = Math.min;
+  private qs: any; shown = signal(WINDOW); min = Math.min; ref = readSeen(this.cast.slug());
   pick(id: string){ this.sel.set(id); this.shown.set(WINDOW); }
   ngOnInit(){ this.qs = this.route.queryParams.subscribe(p => { if (p['m'] && this.months().some(m => m.id === p['m'])) this.sel.set(p['m']); }); }
   ngOnDestroy(){ this.qs?.unsubscribe(); }

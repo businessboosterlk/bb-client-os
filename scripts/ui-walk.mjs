@@ -29,6 +29,8 @@ async function walk(tag, width, desk, dark) {
   await p.fill('#biz', 'nobody.lk'); await p.fill('#pin', '0000'); await p.locator('.enter').click(); await p.waitForFunction(() => (document.querySelector('.err, .door [role=alert]')?.textContent || '').trim().length > 0); await see('door-refused');
   await signIn(p, base); await see('launcher');
   for (const s of ['month', 'videos', 'posts', 'docs', 'business']) { await go('#/library/' + s); await p.waitForSelector('.page h1'); await see('library-' + s); }
+  await step('library-search', async () => { await go('#/library/month'); await p.waitForSelector('[data-act="library-search"]'); await p.fill('[data-act="library-search"]', 'roast'); await p.waitForSelector('[data-search-results]'); await see('library-search'); await p.fill('[data-act="library-search"]', ''); });
+  await step('library-fact-lit', async () => { await go('#/library/business?f=House%20rule'); await p.waitForSelector('.fact.lit'); await see('library-fact-lit'); });
   for (const s of ['dashboard', 'customers', 'tasks']) { await go('#/sales/' + s); await p.waitForSelector('.page h1'); await see('sales-' + s); }
   for (const s of ['enquiries', 'pipeline']) {
     await go('#/sales/' + s + '?view=board'); await p.waitForSelector('.board .dc'); await see('sales-' + s + '-board');

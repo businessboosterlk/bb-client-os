@@ -21,7 +21,7 @@ const db = {
   tasks: Array.from({ length: N }, (_, i) => ({ id: 't' + i, text: 'Task ' + i, done: i % 3 === 0, due: ago(i - 48).slice(0, 10), dealId: 'd' + i, createdAt: ago(i), updatedAt: ago(i) })),
   activities: Array.from({ length: N }, (_, i) => ({ id: 'a' + i, dealId: 'd' + (i % 50), type: 'note', summary: 'Note ' + i, createdAt: ago(i), updatedAt: ago(i) }))
 };
-let hold = 0, down = false, gone = false; const reads = [], writes = [];
+let hold = 0, down = false, gone = false; const reads = [], writes = [], seen = [];
 const api = http.createServer(async (q, r) => {
   const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS' };
   if (q.method === 'OPTIONS') { r.writeHead(204, cors); return r.end(); }
@@ -33,6 +33,7 @@ const api = http.createServer(async (q, r) => {
   if (parts[1] === 'other') { if (q.headers.authorization !== 'Bearer tok-other') return send(401, { error: 'Sign in again' }); if (parts[2] === 'cast') return send(200, { ...cast, slug: 'other', name: 'Other Test Client' }); if (q.method === 'GET') { reads.push({ kind: parts[2], limit: u.searchParams.get('limit'), offset: u.searchParams.get('offset'), rows: 0 }); return send(200, []); } return send(404, {}); }
   if (gone || q.headers.authorization !== 'Bearer tok-harness' || parts[1] !== 'demo') return send(401, { error: 'Sign in again' });
   if (parts[2] === 'cast') return send(200, cast);
+  if (parts[2] === 'seen') { seen.push(JSON.parse(body || '{}')); return send(201, { ok: true }); }
   const kind = parts[2], rows = db[kind]; if (!rows) return send(404, { error: 'Unknown table' });
   if (q.method === 'GET') { const lim = u.searchParams.get('limit'), off = Number(u.searchParams.get('offset') || 0); const n = Math.min(Number(lim || CAP), CAP); const out = rows.slice(off, off + n); reads.push({ kind, limit: lim, offset: u.searchParams.get('offset'), rows: out.length }); return send(200, out); }
   writes.push({ method: q.method, kind, id: parts[3] || '' });
@@ -94,6 +95,9 @@ check('instant open: the first screen paints from the copy on the device while e
 check('instant open: what was saved a moment before is in that copy', h2.enquiries === N + 1, h2.enquiries);
 hold = 0; await p.waitForFunction(() => window.__hub.from() === 'server', null, { timeout: 120000 });
 check('then the server is asked for news behind the screen, and the screen follows it', (await p.evaluate(() => window.__hub.from())) === 'server' && reads.length > 0, reads.length + ' reads');
+/* 3b. WHO OPENED WHAT: a signed-in seat on the server tells it the app was opened and which library screen was viewed */
+await go('#/library/month'); await p.waitForSelector('.page h1'); await go('#/library/videos'); await p.waitForTimeout(600);
+check('a visit is recorded on the server: an open with its source (a cold restart is a new open, visits.mjs joins them), each library screen viewed, and never a row a person made', seen.filter(e => e.what === 'open').length >= 1 && seen.filter(e => e.what === 'open').every(e => ['wa', 'app', 'bb', 'direct'].includes(e.src)) && seen.some(e => e.what === 'view' && e.detail === 'month') && seen.some(e => e.what === 'view' && e.detail === 'videos') && seen.every(e => ['open', 'view', 'tap'].includes(e.what) && typeof e.src === 'string'), { events: seen.length, open: seen.filter(e => e.what === 'open').map(e => e.src), views: seen.filter(e => e.what === 'view').map(e => e.detail) });
 
 /* 5. NO CONNECTION */
 down = true; await cold('#/sales/customers'); await p.waitForSelector('.list.phone .li', { timeout: 20000 }); await p.waitForFunction(() => window.__hub.offline(), null, { timeout: 20000 });

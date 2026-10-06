@@ -9,6 +9,7 @@ import { BottomMenuComponent, MenuTab, MenuAction } from './bottom-menu.componen
 import { ThemeService } from '../core/theme.service';
 import { UpdateService } from '../core/update.service';
 import { AskService } from '../core/ask.service';
+import { SeenService } from '../core/seen.service';
 
 /* one colour at the top: the status strip and the browser chrome take the colour of
    the screen they sit on. Cream inside the app, the dark ink only on the door. */
@@ -99,7 +100,8 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
     .r-client img{width:26px;height:26px;border-radius:7px;background:#fff;padding:2px;object-fit:contain;flex-shrink:0}
     .r-mono{width:26px;height:26px;border-radius:7px;background:var(--brand);color:var(--on-accent);display:grid;place-items:center;font-size:12.5px;font-weight:700;flex-shrink:0}
     .r-client strong{color:#fff;font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .grp-h{display:flex;align-items:center;justify-content:space-between;width:100%;padding:8px 8px 6px;border:0;background:none;color:var(--sidebar-txt);font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border-radius:8px}
+    /* the chrome speaks in sentence case: a shouting label on every group was the loudest amateur tell (design standard 7.1) */
+    .grp-h{display:flex;align-items:center;justify-content:space-between;width:100%;padding:8px 8px 6px;border:0;background:none;color:var(--sidebar-faint);font-size:11.5px;font-weight:600;border-radius:8px}
     @media (hover:hover){.grp-h:hover{color:var(--sidebar-txt)}}.grp-h .chev{transition:transform var(--dur) var(--ease);--ico:14px}
     .grp.off .grp-h .chev{transform:rotate(-90deg)}
     /* groups fold on a grid track, so the rail never snaps */
@@ -151,7 +153,7 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
 })
 export class ShellComponent implements OnInit, OnDestroy {
   cast = inject(CastService); session = inject(SessionService); data = inject(DataService); theme = inject(ThemeService);
-  update = inject(UpdateService); private ask = inject(AskService);
+  update = inject(UpdateService); private ask = inject(AskService); private seen = inject(SeenService);
   scrolled = signal(false);
   /* a wide wordmark squeezed into a 26px tile is a smudge: measured when it loads, never assumed */
   wide = signal(false);
@@ -217,9 +219,12 @@ export class ShellComponent implements OnInit, OnDestroy {
     const other = this.system() === 'library' ? 'sales' : 'library';
     this.collapsed.set(new Set([other]));
     this.readTitle();
+    this.seen.open(); if (/^\/library\//.test(this.activeUrl())) this.seen.view(this.activeUrl().replace('/library/', ''));
     this.theme.apply();
     this.sub = this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe(() => {
       const was = this.activeUrl(); this.readTitle();
+      /* the library screens a seat looks at are what BB reads in December */
+      if (/^\/library\//.test(this.activeUrl())) this.seen.view(this.activeUrl().replace('/library/', ''));
       /* a screen change rises in and opens at its own top; a query-param change on the same screen does neither */
       if (was && was !== this.activeUrl()) { scrollTo(0, 0); this.scrolled.set(false); this.entering.set(false); requestAnimationFrame(() => this.entering.set(true)); }
     });

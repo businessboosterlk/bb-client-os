@@ -48,7 +48,11 @@ export class SessionService {
      group link arrive without a new login. A seat the server no longer accepts goes to the door. */
   async refresh(): Promise<'ok' | 'lost' | 'offline'> {
     const api = this.castSvc.config().api; const c = this.castSvc.cast();
-    if (!api || !c || !this.token()) return 'ok';
+    if (!c) return 'ok';
+    /* the static demo keeps its cast in the session from the day it signed in: re-read the file, so a
+       note written this morning is on the phone this morning (the Workshop OS lesson, 16 Sep 2026) */
+    if (!api) { const fresh = await this.castSvc.loadStatic(c.slug); if (fresh) this.save({ token: '', slug: c.slug, seat: this.user(), cast: fresh }); return 'ok'; }
+    if (!this.token()) return 'ok';
     try {
       const r = await fetch(`${api}/api/${c.slug}/cast`, { headers: { Authorization: 'Bearer ' + this.token() } });
       if (r.status === 401) return 'lost';
