@@ -28,10 +28,14 @@ const bucket = (slug, kind) => { if (!mem.has(slug)) mem.set(slug, new Map()); c
 const memory = {
   async list(slug, kind, { limit = PAGE_DEFAULT, offset = 0 } = {}){ return [...bucket(slug, kind).values()].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '') || String(b.id).localeCompare(String(a.id))).slice(offset, offset + Math.min(limit, PAGE_MAX)); },
   async get(slug, kind, id){ return bucket(slug, kind).get(id) || null; },
-  async create(slug, kind, data){ const row = { ...data, id: uid(), createdAt: now(), updatedAt: now() }; bucket(slug, kind).set(row.id, row); return row; },
+  /* memory refuses what the real table refuses: os_records has a check on kind. A memory store that
+     accepted anything let a route write 'events' in every test while the real table would refuse it. */
+  async create(slug, kind, data){ if (!KINDS.has(kind)) throw new Error('os_records refuses kind ' + kind); const row = { ...data, id: uid(), createdAt: now(), updatedAt: now() }; bucket(slug, kind).set(row.id, row); return row; },
   async update(slug, kind, id, patch){ const b = bucket(slug, kind); const cur = b.get(id); if (!cur) return null; const row = { ...cur, ...patch, id, updatedAt: now() }; b.set(id, row); return row; },
   async remove(slug, kind, id){ return bucket(slug, kind).delete(id); },
-  async audit(){ }
+  async audit(){ },
+  async seen(slug, seat, what, detail, src){ const l = (globalThis.__hubSeen ||= []); l.push({ client: slug, by: seat, what, detail, src, createdAt: now(), id: uid() }); },
+  async seenList(slug, { limit = PAGE_DEFAULT, offset = 0 } = {}){ return (globalThis.__hubSeen || []).filter(e => e.client === slug).slice().reverse().slice(offset, offset + Math.min(limit, PAGE_MAX)).map(({ client, ...e }) => e); }
 };
 
 /* ── supabase ── */
@@ -60,7 +64,19 @@ const supabase = {
     const { data: row, error } = await (await supa()).from('os_records').update({ data: doc, updated_at: now() }).eq('client', slug).eq('kind', kind).eq('id', id).select().single(); if (error) throw error; return flat(row);
   },
   async remove(slug, kind, id){ const { error } = await (await supa()).from('os_records').delete().eq('client', slug).eq('kind', kind).eq('id', id); if (error) throw error; return true; },
-  async audit(slug, seat, action, kind, record_id){ try { await (await supa()).from('os_audit').insert({ client: slug, seat, action, kind, record_id: /^[0-9a-f-]{36}$/.test(record_id || '') ? record_id : null }); } catch {} }
+  async audit(slug, seat, action, kind, record_id){ try { await (await supa()).from('os_audit').insert({ client: slug, seat, action, kind, record_id: /^[0-9a-f-]{36}$/.test(record_id || '') ? record_id : null }); } catch {} },
+  /* VISITS live in os_audit, which already exists and already takes one row per thing a seat did:
+     action 'seen-open' | 'seen-view' | 'seen-tap', kind '<src>:<detail>'. os_records only accepts the
+     five book kinds (a check on the table), and changing that would be a schema change. Found when
+     the code first met the real table on 7 Oct 2026: the memory store had accepted 'events'. */
+  async seen(slug, seat, what, detail, src){ const { error } = await (await supa()).from('os_audit').insert({ client: slug, seat, action: 'seen-' + what, kind: (src + ':' + detail).slice(0, 200) }); if (error) throw error; },
+  async seenList(slug, { limit = PAGE_DEFAULT, offset = 0 } = {}){
+    const n = Math.min(limit, PAGE_MAX);
+    const { data, error } = await (await supa()).from('os_audit').select('id,seat,action,kind,at').eq('client', slug).like('action', 'seen-%')
+      .order('at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + n - 1);
+    if (error) throw error;
+    return data.map(r => { const k = String(r.kind || ''), i = k.indexOf(':'); return { id: String(r.id), what: r.action.slice(5), src: i > 0 ? k.slice(0, i) : 'direct', detail: i > 0 ? k.slice(i + 1) : k, by: r.seat || '', createdAt: r.at }; });
+  }
 };
 export const store = mode === 'supabase' ? supabase : memory;
 export function validKind(k){ return KINDS.has(k); }

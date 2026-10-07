@@ -7,6 +7,6 @@ export async function GET(req){
   if (!isAdmin(req)) return deny('BB admin only', 403);
   const slug = new URL(req.url).searchParams.get('slug') || '';
   if (!/^[a-z0-9-]{2,40}$/.test(slug)) return Response.json({ error: 'slug is required' }, { status: 400 });
-  return Response.json(await store.list(slug, 'events', paging(req.url)));
+  return Response.json(await store.seenList(slug, paging(req.url)));
 }
 export async function OPTIONS(){ return new Response(null, { status: 204 }); }

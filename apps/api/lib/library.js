@@ -29,9 +29,8 @@ export function mergeLibrary(config, rows){
   const factRows = vis.filter(r => r.kind === 'fact' && r.title);
   if (months.length) lib.months = months;
   if (docs.length) lib.docs = docs;
-  /* a line from the team: the newest visible `note` row, its text in title and who wrote it in sub */
-  const noteRow = vis.filter(r => r.kind === 'note' && r.title).sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))[0];
-  if (noteRow) lib.note = { text: noteRow.title, by: noteRow.sub || '', date: noteRow.updated_at ? new Date(String(noteRow.updated_at).slice(0, 10) + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : '' };
+  /* the line from the team lives in the client's settings (library.note), set with onboard.mjs. bb_library_items
+     accepts only video, post, doc and fact (a check on the table), so a note is not a library row. */
   if (factRows.length) {
     lib.facts = factRows.map(r => ({ k: r.title, v: r.sub || '' }));
     const latest = factRows.map(day).filter(Boolean).sort().pop();

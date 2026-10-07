@@ -69,6 +69,10 @@ await probe('B\'s token writing a visit event into Alpha', [401], 'POST', '/api/
 await probe('A\'s token reading its own visit events through the table door', [404], 'GET', '/api/alpha/events', { token: ta });
 await probe('A\'s token reading its own visit events through BB\'s door', [401, 403], 'GET', '/api/bb/events?slug=alpha', { token: ta });
 await probe('a visit event with a nonsense kind', [400], 'POST', '/api/alpha/seen', { token: ta, body: { what: 'delete', src: 'direct' } });
+{ const w = await call('POST', '/api/alpha/seen', { token: ta, body: { what: 'view', detail: 'videos', src: 'wa' } });
+  const r = await call('GET', '/api/bb/events?slug=alpha', { headers: { 'X-BB-Admin': 'wall-admin-' + SECRET } });
+  let rows = []; try { rows = JSON.parse(r.text); } catch {}
+  check('a visit written by Alpha\'s seat is stored and BB reads it back through its own door, with its source', w.status === 201 && r.status === 200 && rows.some(e => e.what === 'view' && e.detail === 'videos' && e.src === 'wa'), w.status + ' then ' + r.status + ' ' + r.text.slice(0, 80)); }
 await probe('the BB onboarding door with no key', [401, 403], 'GET', '/api/bb/clients');
 await probe('the BB onboarding door with a client\'s token as the key', [401, 403], 'GET', '/api/bb/clients', { token: ta, headers: { 'X-BB-Admin': ta } });
 await probe('the BB onboarding door, writing, with no key', [401, 403], 'POST', '/api/bb/clients', { body: { slug: 'gamma', name: 'Gamma' } });
