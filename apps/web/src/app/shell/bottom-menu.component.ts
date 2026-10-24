@@ -3,7 +3,8 @@ import { Router } from '@angular/router';
 import { IconComponent } from '../ui/icon.component';
 
 export interface MenuAction { id: string; label: string; icon: string; link?: string; params?: Record<string, any>; href?: string; run?: () => void; }
-export interface MenuTab { path: string; label: string; icon: string; badge?: () => number; menu?: MenuAction[]; }
+/* key names the place (tab-<key>); match is the address prefix that marks it current, so Sales stays lit on every sales screen */
+export interface MenuTab { key: string; path: string; match?: string; label: string; icon: string; badge?: () => number; menu?: MenuAction[]; }
 
 /* The phone bar, built to the uselayouts Bottom Menu (MIT, 21st.dev, 0xUrvish):
    a small floating pill of icons; tap one and a panel grows out of the pill from
@@ -31,7 +32,7 @@ export interface MenuTab { path: string; label: string; icon: string; badge?: ()
       </div>
       <nav class="bm-bar" aria-label="Screens">
         @for (it of items; track it.path) {
-          <button type="button" class="bm-btn" [class.on]="active === it.path" [class.sel]="open() === it.path" [attr.data-act]="'tab-' + it.path.split('/').pop()" (click)="tap(it, $event)" [attr.aria-label]="it.label + (it.badge && it.badge() > 0 ? ', ' + it.badge() + ' waiting' : '')" [attr.aria-current]="active === it.path ? 'page' : null" [attr.aria-expanded]="open() === it.path">
+          <button type="button" class="bm-btn" [class.on]="isOn(it)" [class.sel]="open() === it.path" [attr.data-act]="'tab-' + it.key" (click)="tap(it, $event)" [attr.aria-label]="it.label + (it.badge && it.badge() > 0 ? ', ' + it.badge() + ' waiting' : '')" [attr.aria-current]="isOn(it) ? 'page' : null" [attr.aria-expanded]="open() === it.path">
             <bb-icon [name]="it.icon"/>
             @if (it.badge && it.badge() > 0) { <i class="dot"></i> }
           </button>
@@ -42,8 +43,8 @@ export interface MenuTab { path: string; label: string; icon: string; badge?: ()
     :host{display:block}
     .bm{position:fixed;left:50%;bottom:calc(14px + var(--sab));transform:translateX(-50%);z-index:40;display:flex;flex-direction:column;align-items:center;
       transition:opacity 180ms var(--ease),translate 180ms var(--ease)}
-    /* a sheet or the rail owns the screen: the bar steps down and out of its way */
-    :host-context(body.sheet-open) .bm{opacity:0;translate:0 18px;pointer-events:none}
+    /* a sheet or the rail owns the screen, or the person is typing in the chat: the bar steps down and out of its way */
+    :host-context(body.sheet-open) .bm,:host-context(body.composing) .bm{opacity:0;translate:0 18px;pointer-events:none}
     .bm-bar{display:flex;align-items:center;gap:4px;padding:4px;border-radius:18px;border:1px solid var(--line);
       background:var(--pill);border-color:var(--pill-line);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
       box-shadow:var(--sh-lg)}
@@ -103,7 +104,7 @@ export class BottomMenuComponent implements AfterViewInit, OnDestroy {
   tap(it: MenuTab, ev: Event){
     ev.stopPropagation();
     const same = this.open() === it.path;
-    if (this.active !== it.path) this.router.navigateByUrl(it.path);
+    if (!this.isOn(it)) this.router.navigateByUrl(it.path);
     if (same || !it.menu?.length) { this.close(); return; }
     this.swapped.set(!!this.open());
     this.open.set(it.path);
@@ -111,6 +112,7 @@ export class BottomMenuComponent implements AfterViewInit, OnDestroy {
        a throttled tab still sizes the panel correctly */
     afterNextRender(() => this.measure(), { injector: this.injector });
   }
+  isOn(it: MenuTab){ const m = it.match || it.path; return this.active === m || this.active.startsWith(m + '/'); }
   private measure(){
     if (!this.open()) return;
     const c = this.card?.nativeElement; if (!c) return;

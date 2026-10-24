@@ -95,13 +95,13 @@ export class LoginComponent implements OnDestroy {
     document.documentElement.style.setProperty('--top', GROUND);
     document.documentElement.style.setProperty('--door-ground', GROUND);
     document.querySelector('meta[name=theme-color]')?.setAttribute('content', GROUND);
-    if (this.session.user() && this.cast.cast()) this.router.navigate(['/start']);
+    if (this.session.user() && this.cast.cast()) this.router.navigate(['/chat']);
     const c = new URLSearchParams(location.search).get('c'); if (c) this.business = c;
   }
   ngOnDestroy(){ document.body.classList.remove('on-door'); this.theme.apply(); }
   async go(e: Event){
     e.preventDefault(); if (this.busy()) return; this.busy.set(true);
-    try { if (await this.session.login(this.business, this.code)) { await this.data.arrive(this.cast.slug()); await this.data.init(); this.router.navigate(['/start']); } }
+    try { if (await this.session.login(this.business, this.code)) { await this.data.arrive(this.cast.slug()); await this.data.init(); this.router.navigate(['/chat']); } }
     finally { this.busy.set(false); }
   }
 }

@@ -245,7 +245,8 @@ button.li{width:100%;border:0;border-top:1px solid var(--line);background:none;t
 .drawer .d-foot .bar > .btn.quiet{min-height:44px}
 .drawer .d-foot .msg{margin:0 0 10px;padding:10px 12px;border-radius:10px;background:var(--red-soft);color:var(--red);font-size:13px;font-weight:600;line-height:1.4}
 .drawer .d-head .d-edit{margin-left:auto;flex-shrink:0}
-.drawer .d-head h3{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* a long name wraps to two lines and only then is cut (24 Oct 2026: a task or post title is often a sentence) */
+.drawer .d-head h3{min-width:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal;line-height:1.3}
 .btn.quiet{background:transparent;border-color:transparent;color:var(--muted)}
 @media (hover:hover){.btn.quiet:hover{background:var(--surface-2);color:var(--ink)}}
 .btn.quiet.warn{color:var(--red)}@media (hover:hover){.btn.quiet.warn:hover{background:var(--red-soft);color:var(--red)}}

@@ -61,5 +61,5 @@ export async function signIn(p, base) {
   await p.goto(base); await p.waitForSelector('#biz', { timeout: 15000 });
   await p.fill('#biz', 'cinnamon.lk'); await p.fill('#pin', '1111');
   await p.locator('.enter').click();
-  await p.waitForFunction(() => /#\/start/.test(location.hash), null, { timeout: 15000 });
+  await p.waitForFunction(() => /#\/chat/.test(location.hash), null, { timeout: 15000 });
 }

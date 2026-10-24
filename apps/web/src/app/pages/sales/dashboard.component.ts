@@ -120,10 +120,10 @@ export class DashboardComponent {
       out.push({ m: d.toLocaleDateString('en-GB', { month: 'short' }), v: this.data.deals().filter(x => x.stage === 'won' && (x.updatedAt || '').slice(0, 7) === ym).reduce((a, x) => a + (Number(x.value) || 0), 0), h: 0, pct: 0 }); }
     const max = Math.max(1, ...out.map(b => b.v)); out.forEach(b => b.pct = b.v ? Math.max(5, Math.round(b.v / max * 100)) : 0); return out;
   });
-  /* what to do first: overdue tasks, then quiet deals, then hot deals, then waiting enquiries */
+  /* what to do first: overdue follow ups, then quiet deals, then hot deals, then waiting enquiries */
   queue = computed(() => {
     const q: any[] = []; const seen = new Set<string>();
-    this.data.dueTasks().forEach(t => q.push({ key: 't' + t.id, level: 'critical', icon: 'clock', title: t.text, why: 'Due ' + (t.due === new Date().toISOString().slice(0, 10) ? 'today' : niceDate(t.due)), href: '/sales/tasks', params: { open: t.id } }));
+    this.data.dueTasks().forEach(t => q.push({ key: 't' + t.id, level: 'critical', icon: 'clock', title: t.text, why: 'Due ' + (t.due === new Date().toISOString().slice(0, 10) ? 'today' : niceDate(t.due)), href: '/sales/follow-ups', params: { open: t.id } }));
     this.data.stale().forEach(d => { if (seen.has(d.id)) return; seen.add(d.id); const n = this.quiet(d); q.push({ key: 'd' + d.id, level: n >= 10 ? 'critical' : 'high', icon: 'alert', title: d.name, why: `${n} days quiet · ${this.stageLabel(d.stage)}${d.value ? ' · ' + this.cast.money(d.value) : ''}`, href: '/sales/pipeline', params: { open: d.id } }); });
     this.data.openDeals().filter(d => d.stage === 'closing' && !seen.has(d.id)).forEach(d => { seen.add(d.id); q.push({ key: 'h' + d.id, level: 'normal', icon: 'flame', title: d.name, why: 'Closing' + (d.nextStep ? ' · ' + d.nextStep : ''), href: '/sales/pipeline', params: { open: d.id } }); });
     this.data.waiting().slice(0, 3).forEach(e => q.push({ key: 'e' + e.id, level: 'high', icon: 'inbox', title: e.name, why: 'New ' + this.cast.word('enquiry', 'enquiry').toLowerCase() + (e.wants ? ' · ' + e.wants : ''), href: '/sales/enquiries', params: { open: e.id } }));

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* EVERY SCREEN, MEASURED AND PHOTOGRAPHED. Walks the door, the launcher, every screen, every sheet,
+/* EVERY SCREEN, MEASURED AND PHOTOGRAPHED. Walks the door, the chat, every screen, every sheet,
    the rail and the bottom menu at 390, 320 and 1440, in day and in night. The gap audit runs on each
    and a photograph of each goes to evidence/gallery for a person to LOOK at.
    node scripts/ui-walk.mjs [out-folder]      exits 1 on any fault */
@@ -27,11 +27,23 @@ async function walk(tag, width, desk, dark) {
 
   await p.goto(base); await p.waitForSelector('#biz'); await see('door');
   await p.fill('#biz', 'nobody.lk'); await p.fill('#pin', '0000'); await p.locator('.enter').click(); await p.waitForFunction(() => (document.querySelector('.err, .door [role=alert]')?.textContent || '').trim().length > 0); await see('door-refused');
-  await signIn(p, base); await see('launcher');
+  await signIn(p, base); await p.waitForSelector('bb-bubble'); await see('chat');
+  /* the workspace with Business Booster: the chat with a message's actions open, both task boards, the posts, every sheet */
+  await step('chat-actions', async () => { await p.evaluate(() => document.querySelector('[data-msg="wm7"]')?.scrollIntoView({ block: 'center' })); await tap('[data-msg="wm7"] [data-act="msg-more"]'); await p.waitForSelector('[data-act="msg-task"]'); await see('chat-actions'); });
+  await step('chat-top', async () => { await p.evaluate(() => scrollTo(0, 0)); await see('chat-top'); });
+  for (const [side, view] of [['client', 'board'], ['client', 'list'], ['bb', 'board'], ['bb', 'list']]) { await go('#/tasks?for=' + side + '&view=' + view); await p.waitForSelector('.page h1'); await see('tasks-' + side + '-' + view); }
+  for (const view of ['board', 'list']) { await go('#/posts?view=' + view); await p.waitForSelector('[data-act="wpost-open"]'); await see('posts-' + view); }
+  await go('#/tasks?view=list&for=bb'); await sheet('sheet-wtask-late', () => tap('[data-act="wtask-open"]'));
+  await go('#/tasks?view=list&for=client'); await sheet('sheet-wtask-mine', () => tap('[data-act="wtask-open"]'));
+  await go('#/tasks'); await sheet('sheet-wtask-new', () => tap('[data-act="wtask-new"]'));
+  await step('sheet-wtask-refused', async () => { await tap('[data-act="wtask-new"]'); await p.waitForSelector('.drawer.on'); await tap('.drawer.on [data-act="wtask-add"]'); await p.waitForSelector('.drawer.on .msg'); await see('sheet-wtask-refused'); await shut(); });
+  await go('#/posts?view=list'); await sheet('sheet-wpost', () => tap('[data-act="wpost-open"]'));
+  await go('#/posts?view=list&show=waiting');
+  await step('sheet-wpost-asking', async () => { await tap('[data-act="wpost-open"]'); await p.waitForSelector('.drawer.on'); await tap('.drawer.on [data-act="wpost-change"]'); await p.waitForSelector('#wp-change'); await see('sheet-wpost-asking'); await shut(); });
   for (const s of ['month', 'videos', 'posts', 'docs', 'business']) { await go('#/library/' + s); await p.waitForSelector('.page h1'); await see('library-' + s); }
   await step('library-search', async () => { await go('#/library/month'); await p.waitForSelector('[data-act="library-search"]'); await p.fill('[data-act="library-search"]', 'roast'); await p.waitForSelector('[data-search-results]'); await see('library-search'); await p.fill('[data-act="library-search"]', ''); });
   await step('library-fact-lit', async () => { await go('#/library/business?f=House%20rule'); await p.waitForSelector('.fact.lit'); await see('library-fact-lit'); });
-  for (const s of ['dashboard', 'customers', 'tasks']) { await go('#/sales/' + s); await p.waitForSelector('.page h1'); await see('sales-' + s); }
+  for (const s of ['dashboard', 'customers', 'follow-ups']) { await go('#/sales/' + s); await p.waitForSelector('.page h1'); await see('sales-' + s); }
   for (const s of ['enquiries', 'pipeline']) {
     await go('#/sales/' + s + '?view=board'); await p.waitForSelector('.board .dc'); await see('sales-' + s + '-board');
     await go('#/sales/' + s + '?view=list'); await p.waitForSelector(desk ? 'table.tbl tbody tr' : '.list .li'); await see('sales-' + s + '-list');
@@ -39,7 +51,7 @@ async function walk(tag, width, desk, dark) {
   /* every sheet, in every state a person meets: the add form, the add form refused, the record,
      the record being edited, the question before a removal and the filters on a phone */
   const row = desk ? 'table.tbl tbody tr' : '.list.phone .li';
-  const kinds = [['enquiry', '#/sales/enquiries?view=list', row], ['deal', '#/sales/pipeline?view=board', '.dc'], ['customer', '#/sales/customers', row], ['task', '#/sales/tasks', '[data-act="task-open"]']];
+  const kinds = [['enquiry', '#/sales/enquiries?view=list', row], ['deal', '#/sales/pipeline?view=board', '.dc'], ['customer', '#/sales/customers', row], ['followup', '#/sales/follow-ups', '[data-act="followup-open"]']];
   for (const [k, hash, opener] of kinds) {
     await go(hash); await p.waitForSelector('.page h1');
     await sheet('sheet-' + k + '-new', () => tap('[data-act="' + k + '-new"]'));
@@ -53,7 +65,7 @@ async function walk(tag, width, desk, dark) {
     await step('sheet-filters', async () => { await go('#/sales/enquiries?view=list'); await tap('[data-act="filter-open"]'); await p.waitForSelector('.drawer.on'); await see('sheet-filters'); await shut(); });
     await go('#/sales/dashboard');
     await step('rail', async () => { await tap('[data-act="menu"]'); await p.waitForSelector('.rail.open'); await see('rail'); await p.keyboard.press('Escape'); await p.waitForTimeout(300); });
-    await step('bottom-menu', async () => { await tap('[data-act="tab-enquiries"]'); await p.waitForSelector('.bm-sub.on'); await see('bottom-menu'); await p.keyboard.press('Escape'); });
+    await step('bottom-menu', async () => { await tap('[data-act="tab-sales"]'); await p.waitForSelector('.bm-sub.on'); await see('bottom-menu'); await p.keyboard.press('Escape'); });
   }
   await step('offline-line', async () => { await go('#/sales/customers'); await p.evaluate(() => { const m = document.querySelector('main.page'); const l = document.createElement('p'); l.className = 'offline'; l.id = 'probe-offline'; l.innerHTML = '<span>No connection. Showing what was saved on this device.</span>'; m.prepend(l); }); await see('offline-line'); await p.evaluate(() => document.getElementById('probe-offline')?.remove()); });
   await c.close();

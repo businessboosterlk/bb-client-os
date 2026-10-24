@@ -7,8 +7,8 @@
 import { chromium, serve, context, signIn } from './lib/world.mjs';
 const results = []; const check = (name, pass, saw) => { results.push({ name, pass: !!pass }); console.log((pass ? 'PASS ' : 'FAIL ') + name + (saw !== undefined ? '  [saw: ' + (typeof saw === 'string' ? saw : JSON.stringify(saw)) + ']' : '')); };
 const { srv, base } = serve(); const browser = await chromium.launch();
-const SCREENS = ['#/start', '#/library/month', '#/library/videos', '#/library/posts', '#/library/docs', '#/library/business', '#/sales/dashboard', '#/sales/enquiries?view=board', '#/sales/enquiries?view=list', '#/sales/pipeline?view=board', '#/sales/pipeline?view=list', '#/sales/customers', '#/sales/tasks'];
-const SHEETS = [['#/sales/enquiries?view=list', 'enquiry-new'], ['#/sales/enquiries?view=list', 'enquiry-open'], ['#/sales/pipeline?view=board', 'deal-new'], ['#/sales/pipeline?view=board', 'deal-open'], ['#/sales/customers', 'customer-new'], ['#/sales/customers', 'customer-open'], ['#/sales/tasks', 'task-new'], ['#/sales/tasks', 'task-open']];
+const SCREENS = ['#/chat', '#/posts?view=board', '#/posts?view=list', '#/tasks?view=board&for=client', '#/tasks?view=list&for=bb', '#/library/month', '#/library/videos', '#/library/posts', '#/library/docs', '#/library/business', '#/sales/dashboard', '#/sales/enquiries?view=board', '#/sales/enquiries?view=list', '#/sales/pipeline?view=board', '#/sales/pipeline?view=list', '#/sales/customers', '#/sales/follow-ups'];
+const SHEETS = [['#/tasks', 'wtask-new'], ['#/tasks?view=list', 'wtask-open'], ['#/posts?view=list', 'wpost-open'], ['#/sales/enquiries?view=list', 'enquiry-new'], ['#/sales/enquiries?view=list', 'enquiry-open'], ['#/sales/pipeline?view=board', 'deal-new'], ['#/sales/pipeline?view=board', 'deal-open'], ['#/sales/customers', 'customer-new'], ['#/sales/customers', 'customer-open'], ['#/sales/follow-ups', 'followup-new'], ['#/sales/follow-ups', 'followup-open']];
 /* runs in the page: names, labels and contrast of everything that can be seen */
 const SCAN = () => {
   /* with a sheet open, the sheet is what a person can reach: the page behind is under the scrim */
@@ -43,7 +43,7 @@ for (const [tag, opt] of [['phone day', {}], ['phone night', { dark: true }], ['
   await p.goto(base); await p.waitForSelector('#biz'); const door = await p.evaluate(SCAN); Object.entries(door).forEach(([k, v]) => add(k, tag + ' door', v));
   await signIn(p, base);
   for (const h of SCREENS) { await go(h); const r = await p.evaluate(SCAN); Object.entries(r).forEach(([k, v]) => add(k, tag + ' ' + h, v));
-    if (/sales|library/.test(h)) { const cur = await p.evaluate(() => ({ rail: [...document.querySelectorAll('.rail a[aria-current="page"]')].length, tab: [...document.querySelectorAll('.bm-btn[aria-current="page"]')].length })); if (cur.rail !== 1 || (!desk && cur.tab !== 1)) add('current', tag + ' ' + h, ['rail ' + cur.rail + ', tab ' + cur.tab]); } }
+    if (/sales|library|chat|posts|tasks/.test(h)) { const cur = await p.evaluate(() => ({ rail: [...document.querySelectorAll('.rail a[aria-current="page"]')].length, tab: [...document.querySelectorAll('.bm-btn[aria-current="page"]')].length })); if (cur.rail !== 1 || (!desk && cur.tab !== 1)) add('current', tag + ' ' + h, ['rail ' + cur.rail + ', tab ' + cur.tab]); } }
   for (const [h, act] of SHEETS) { await go(h); const opener = p.locator('[data-act="' + act + '"]:visible').first(); await opener.focus().catch(() => {}); await press('[data-act="' + act + '"]'); await p.waitForSelector('.drawer.on'); await p.waitForTimeout(450);
     const d = await p.evaluate(() => { const s = [...document.querySelectorAll('.drawer.on')].pop(); const t = document.getElementById(s.getAttribute('aria-labelledby')); return { role: s.getAttribute('role'), modal: s.getAttribute('aria-modal'), title: (t?.textContent || '').trim(), focusIn: s.contains(document.activeElement), behindInert: [...document.querySelectorAll('.drawer:not(.on)')].every(x => x.hasAttribute('inert')) }; });
     if (d.role !== 'dialog' || d.modal !== 'true' || !d.title || !d.focusIn) add('dialog', tag + ' ' + act, [JSON.stringify(d)]);
@@ -52,7 +52,7 @@ for (const [tag, opt] of [['phone day', {}], ['phone night', { dark: true }], ['
     await p.keyboard.press('Escape'); await p.waitForTimeout(450);
     const backOn = await p.evaluate(a => document.activeElement?.getAttribute('data-act') === a, act); if (!backOn) add('focusBack', tag + ' ' + act, [await p.evaluate(() => (document.activeElement?.getAttribute('data-act') || document.activeElement?.tagName))]); }
   /* a focus a keyboard can SEE: Tab through a screen and look at what each stop draws */
-  if (desk) { for (const h of ['#/start', '#/sales/dashboard', '#/sales/pipeline?view=list', '#/sales/tasks']) { await go(h); await p.evaluate(() => document.activeElement?.blur()); const bad = [];
+  if (desk) { for (const h of ['#/chat', '#/sales/dashboard', '#/sales/pipeline?view=list', '#/sales/follow-ups']) { await go(h); await p.evaluate(() => document.activeElement?.blur()); const bad = [];
       for (let i = 0; i < 30; i++) { await p.keyboard.press('Tab'); const f = await p.evaluate(() => { const e = document.activeElement; if (!e || e === document.body) return null; const c = getComputedStyle(e); const ring = c.outlineStyle !== 'none' && parseFloat(c.outlineWidth) >= 2; const edge = parseFloat(c.borderTopWidth) > 0 && c.borderTopColor !== getComputedStyle(e.parentElement).borderTopColor; return { ring: ring || (/(INPUT|SELECT|TEXTAREA)/.test(e.tagName) && edge), what: (e.getAttribute('data-act') || e.getAttribute('aria-label') || e.tagName).slice(0, 30) }; }); if (f && !f.ring) bad.push(f.what); }
       add('focus', tag + ' ' + h, [...new Set(bad)]); } }
   await c.close();

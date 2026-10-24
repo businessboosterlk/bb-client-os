@@ -43,7 +43,7 @@ const plan = [
   ['/sales/pipeline?view=board', [
     { name: 'rail badge number: Enquiries', text: true, sel: '.rail .nb', index: 0, inset: 1, phone: false, baseline: true },
     { name: 'rail badge number: Pipeline', text: true, sel: '.rail .nb', index: 1, inset: 1, phone: false, baseline: true },
-    { name: 'rail badge number: Tasks', text: true, sel: '.rail .nb', index: 2, inset: 1, phone: false, baseline: true },
+    { name: 'rail badge number: Follow ups', text: true, sel: '.rail .nb', index: 2, inset: 1, phone: false, baseline: true },
     { name: 'rail avatar initial', text: true, sel: '.r-foot .avatar', shape: 'circle', inset: 1, phone: false, baseline: true },
     { name: 'rail client initial', text: true, sel: '.r-mono', inset: 1, phone: false, baseline: true },
     { name: 'board count pill: first stage', text: true, sel: '.col-n', index: 0, inset: 1, baseline: true },
@@ -65,8 +65,8 @@ const plan = [
   ['/sales/customers', [
     { name: 'customer table avatar initial', text: true, sel: 'table.tbl .avatar', shape: 'circle', inset: 1, phone: false, baseline: true },
     { name: 'customer list avatar initial', text: true, sel: '.list.phone .avatar', shape: 'circle', inset: 1, desk: false, baseline: true } ]],
-  ['/sales/tasks', [
-    { name: 'tick box, done, the tick in its box', sel: '.tick.on .box', inset: 2, open: async p => { await p.waitForSelector('.page h1'); await p.evaluate(() => { localStorage.setItem('hub_f_tasks', JSON.stringify({ show: 'all' })); }); await p.reload(); await p.waitForSelector('.tick.on .box'); } } ]],
+  ['/sales/follow-ups', [
+    { name: 'tick box, done, the tick in its box', sel: '.tick.on .box', inset: 2, open: async p => { await p.waitForSelector('.page h1'); await p.evaluate(() => { localStorage.setItem('hub_f_follow-ups', JSON.stringify({ show: 'all' })); }); await p.reload(); await p.waitForSelector('.tick.on .box'); } } ]],
   ['/sales/pipeline?view=board', [
     { name: 'sheet close icon', sel: '.drawer.on .x', inset: 4, open: async (p, phone) => { phone ? await p.locator('.dc').first().tap() : await p.locator('.dc').first().click(); await p.waitForSelector('.drawer.on'); await p.waitForTimeout(400); } },
     { name: 'sheet Edit, icon and word', text: true, sel: '.drawer.on .d-edit', inset: 3 },

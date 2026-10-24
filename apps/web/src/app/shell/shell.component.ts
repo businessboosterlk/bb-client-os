@@ -10,6 +10,7 @@ import { ThemeService } from '../core/theme.service';
 import { UpdateService } from '../core/update.service';
 import { AskService } from '../core/ask.service';
 import { SeenService } from '../core/seen.service';
+import { WorkService } from '../core/work.service';
 
 /* one colour at the top: the status strip and the browser chrome take the colour of
    the screen they sit on. Cream inside the app, the dark ink only on the door. */
@@ -18,13 +19,13 @@ export function setTop(color: string){
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', color);
 }
 export function pageColour(){ return getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#f5f5f7'; }
-interface NavItem { path: string; label: string; icon: string; badge?: () => number; }
-interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; }
+interface NavItem { path: string; link: string; label: string; icon: string; badge?: () => number; }
+type Group = 'work' | 'library' | 'sales';
+interface NavGroup { key: Group; label: string; items: NavItem[]; }
 
-/* The shell both systems share. Desktop: a 232px rail with TWO collapsible groups,
-   Library and Sales, a hairline divider between them, the active screen on a 3px
-   accent rail. Phone: a 56px glass topbar and a bottom tab bar carrying the current
-   system's screens; the rail slides in from the menu button to switch systems. */
+/* The one shell. Desktop: a 232px rail with THREE collapsible groups (the work with Business Booster, Library, Sales),
+   hairline dividers, the active screen on a 3px accent rail. Phone: a 56px glass topbar and ONE floating bar of five
+   places, Chat, Posts, Tasks, Sales and Library (24 Oct 2026); Sales and Library open a panel of their screens. */
 @Component({
   selector: 'bb-shell',
   standalone: true,
@@ -36,7 +37,7 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
         <img class="r-mark" src="assets/bb-logo-600.png" alt="Business Booster" width="834" height="338">
         <span class="r-eyebrow">The Hub</span>
         <div class="r-clock" aria-label="Time and date"><strong>{{ time() }}</strong><span>{{ date() }}</span></div>
-        <a class="r-client" routerLink="/start" data-act="rail-home" (click)="setRail(false)" [attr.aria-label]="(cast.cast()?.name || '') + ', home'">
+        <a class="r-client" routerLink="/chat" data-act="rail-home" (click)="setRail(false)" [attr.aria-label]="(cast.cast()?.name || '') + ', home'">
           @if (cast.cast()?.brand?.logo && !wide()) { <img [src]="cast.cast()!.brand.logo" alt="" (load)="fit($event)" (error)="wide.set(true)"> }
           @else { <span class="r-mono">{{ (cast.cast()?.name || '?').slice(0, 1) }}</span> }
           <strong>{{ cast.cast()?.name }}</strong>
@@ -49,7 +50,7 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
           </button>
           <nav><div>
             @for (it of g.items; track it.path) {
-              <a [routerLink]="'/' + g.key + '/' + it.path" routerLinkActive="on" ariaCurrentWhenActive="page" [attr.data-act]="'rail-' + it.path" (click)="setRail(false)">
+              <a [routerLink]="it.link" routerLinkActive="on" ariaCurrentWhenActive="page" [attr.data-act]="'rail-' + it.link.slice(1).replace('/', '-')" (click)="setRail(false)">
                 <bb-icon [name]="it.icon"/><span>{{ it.label }}</span>
                 @if (it.badge && it.badge() > 0) { <span class="nb">{{ it.badge() }}</span> }
               </a>
@@ -70,7 +71,7 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
     <div class="main">
       <header class="topbar" [class.scrolled]="scrolled()">
         <button class="x hamb" type="button" data-act="menu" (click)="setRail(true)" aria-label="Menu" [attr.aria-expanded]="railOpen()"><bb-icon name="menu"/></button>
-        <div class="tt"><strong>{{ title() }}</strong><span>{{ system() === 'library' ? 'Your library' : 'Your sales' }} · {{ cast.cast()?.name }}</span>
+        <div class="tt"><strong>{{ title() }}</strong><span>{{ system() === 'library' ? 'Your library' : system() === 'sales' ? 'Your sales' : 'With Business Booster' }} · {{ cast.cast()?.name }}</span>
           @if (data.pending() > 0) { <em class="off">{{ data.pending() }} waiting to sync</em> }</div>
         <div class="tr">
           <button class="x theme" type="button" data-act="theme" (click)="theme.toggle()" [attr.aria-label]="theme.dark() ? 'Day mode' : 'Night mode'" [attr.aria-pressed]="theme.dark()"><bb-icon [name]="theme.dark() ? 'sun' : 'moon'"/></button>
@@ -153,7 +154,7 @@ interface NavGroup { key: 'library' | 'sales'; label: string; items: NavItem[]; 
 })
 export class ShellComponent implements OnInit, OnDestroy {
   cast = inject(CastService); session = inject(SessionService); data = inject(DataService); theme = inject(ThemeService);
-  update = inject(UpdateService); private ask = inject(AskService); private seen = inject(SeenService);
+  update = inject(UpdateService); private ask = inject(AskService); private seen = inject(SeenService); work = inject(WorkService);
   scrolled = signal(false);
   /* a wide wordmark squeezed into a 26px tile is a smudge: measured when it loads, never assumed */
   wide = signal(false);
@@ -170,43 +171,47 @@ export class ShellComponent implements OnInit, OnDestroy {
     if (open) { this.railLockY = scrollY; b.style.top = `-${this.railLockY}px`; b.classList.add('sheet-open', 'rail-lock'); }
     else if (b.classList.contains('rail-lock')) { b.classList.remove('sheet-open', 'rail-lock'); b.style.top = ''; scrollTo(0, this.railLockY); }
   }
-  system = signal<'library' | 'sales'>('library');
+  system = signal<Group>('work');
   title = signal('');
   time = signal('');
   date = signal('');
   collapsed = signal(new Set<string>());
   private timer: any; private sub: any;
+  private I = (g: string, path: string, label: string, icon: string, badge?: () => number): NavItem => ({ path, link: g ? '/' + g + '/' + path : '/' + path, label, icon, badge });
   groups: NavGroup[] = [
+    { key: 'work', label: 'With Business Booster', items: [
+      this.I('', 'chat', 'Chat', 'chat', () => this.work.needCount()),
+      this.I('', 'posts', 'Posts', 'post', () => this.work.needs().find(n => n.key === 'posts')?.count || 0),
+      this.I('', 'tasks', 'Tasks', 'tasks', () => this.work.forYouOpen()) ] },
     { key: 'library', label: 'Library', items: [
-      { path: 'month', label: 'This month', icon: 'home' }, { path: 'videos', label: 'Videos', icon: 'video' },
-      { path: 'posts', label: 'Posts', icon: 'post' }, { path: 'docs', label: 'Documents', icon: 'doc' },
-      { path: 'business', label: 'Your business', icon: 'brain' } ] },
+      this.I('library', 'month', 'This month', 'home'), this.I('library', 'videos', 'Videos', 'video'),
+      this.I('library', 'posts', 'Posts', 'post'), this.I('library', 'docs', 'Documents', 'doc'),
+      this.I('library', 'business', 'Your business', 'brain') ] },
     { key: 'sales', label: 'Sales', items: [
-      { path: 'dashboard', label: 'Dashboard', icon: 'dash' },
-      { path: 'enquiries', label: 'Enquiries', icon: 'inbox', badge: () => this.data.waiting().length },
-      { path: 'pipeline', label: 'Pipeline', icon: 'pipe', badge: () => this.data.stale().length },
-      { path: 'customers', label: 'Customers', icon: 'users' },
-      { path: 'tasks', label: 'Tasks', icon: 'check', badge: () => this.data.dueTasks().length } ] }
+      this.I('sales', 'dashboard', 'Dashboard', 'dash'),
+      this.I('sales', 'enquiries', 'Enquiries', 'inbox', () => this.data.waiting().length),
+      this.I('sales', 'pipeline', 'Pipeline', 'pipe', () => this.data.stale().length),
+      this.I('sales', 'customers', 'Customers', 'users'),
+      this.I('sales', 'follow-ups', 'Follow ups', 'check', () => this.data.dueTasks().length) ] }
   ];
   activeUrl = signal('');
   entering = signal(false);
-  /* the phone bar: every tab carries the quick actions that screen offers */
+  /* THE PHONE BAR, five places. A tap goes there; Sales and Library also open a panel of their screens, and every place
+     offers the few quick actions that matter there. */
   tabs = computed<MenuTab[]>(() => {
-    const sys = this.system(); const c = this.cast.cast();
-    const months = (m: 'videos' | 'posts'): MenuAction[] => (c?.library.months || []).filter(x => x[m].length).slice(0, 6)
-      .map(x => ({ id: m + '-month', label: x.label + ' ' + x.id.slice(0, 4), icon: m === 'videos' ? 'video' : 'post', link: '/library/' + m, params: { m: x.id } }));
-    const enq = this.cast.word('enquiry', 'enquiry').toLowerCase(), cus = this.cast.word('customer', 'customer').toLowerCase();
-    const menus: Record<string, MenuAction[]> = {
-      month: [ ...(this.wa() ? [{ id: 'month-whatsapp', label: this.cast.isGroup() ? 'Our group with Business Booster' : 'Message Business Booster', icon: 'wa', href: this.wa() }] : []), { id: 'month-sales', label: 'Your sales', icon: 'pipe', link: '/sales' } ],
-      videos: months('videos'), posts: months('posts'), docs: [],
-      business: [ { id: 'business-update', label: 'Update a detail', icon: 'edit', href: this.cast.whatsapp(`Hello, this is ${c?.name} [Hub]. One of the business details needs updating: `) } ],
-      dashboard: [ { id: 'dashboard-new-enquiry', label: 'New ' + enq, icon: 'plus', link: '/sales/enquiries', params: { add: 1 } }, { id: 'dashboard-library', label: 'Your library', icon: 'video', link: '/library' }, { id: 'dashboard-sign-out', label: 'Sign out', icon: 'out', run: () => this.out() } ],
-      enquiries: [ { id: 'enquiries-new', label: 'New ' + enq, icon: 'plus', link: '/sales/enquiries', params: { add: 1 } }, { id: 'enquiries-board', label: 'Board', icon: 'board', link: '/sales/enquiries', params: { view: 'board' } }, { id: 'enquiries-list', label: 'List', icon: 'list', link: '/sales/enquiries', params: { view: 'list' } } ],
-      pipeline: [ { id: 'pipeline-new', label: 'New deal', icon: 'plus', link: '/sales/pipeline', params: { add: 1 } }, { id: 'pipeline-board', label: 'Board', icon: 'board', link: '/sales/pipeline', params: { view: 'board' } }, { id: 'pipeline-list', label: 'List', icon: 'list', link: '/sales/pipeline', params: { view: 'list' } } ],
-      customers: [ { id: 'customers-new', label: 'New ' + cus, icon: 'plus', link: '/sales/customers', params: { add: 1 } } ],
-      tasks: [ { id: 'tasks-new', label: 'New task', icon: 'plus', link: '/sales/tasks', params: { add: 1 } } ]
-    };
-    return this.groups.find(g => g.key === sys)!.items.map(it => ({ ...it, path: '/' + sys + '/' + it.path, menu: menus[it.path] || [] }));
+    const enq = this.cast.word('enquiry', 'enquiry').toLowerCase();
+    const links = (g: Group, pre: string) => this.groups.find(x => x.key === g)!.items.map(it => ({ id: pre + '-' + it.path, label: it.label, icon: it.icon, link: it.link }));
+    return [
+      { key: 'chat', path: '/chat', label: 'Chat', icon: 'chat', badge: () => this.work.needCount(),
+        menu: this.wa() ? [{ id: 'chat-whatsapp', label: this.cast.isGroup() ? 'Our WhatsApp group, the backup' : 'WhatsApp, the backup', icon: 'wa', href: this.wa() }] : [] },
+      { key: 'posts', path: '/posts', label: 'Posts', icon: 'post', badge: () => this.work.needs().find(n => n.key === 'posts')?.count || 0,
+        menu: [{ id: 'posts-waiting', label: 'Waiting for your yes', icon: 'approve', link: '/posts', params: { show: 'waiting' } }, { id: 'posts-board', label: 'Board', icon: 'board', link: '/posts', params: { view: 'board' } }, { id: 'posts-list', label: 'List', icon: 'list', link: '/posts', params: { view: 'list' } }] },
+      { key: 'tasks', path: '/tasks', label: 'Tasks', icon: 'tasks', badge: () => this.work.forYouOpen(),
+        menu: [{ id: 'tasks-new', label: 'New task', icon: 'plus', link: '/tasks', params: { add: 1 } }, { id: 'tasks-for-you', label: 'For you', icon: 'user', link: '/tasks', params: { for: 'client' } }, { id: 'tasks-for-us', label: 'For us', icon: 'users', link: '/tasks', params: { for: 'bb' } }] },
+      { key: 'sales', path: '/sales/dashboard', match: '/sales', label: 'Sales', icon: 'pipe', badge: () => this.data.waiting().length + this.data.dueTasks().length,
+        menu: [...links('sales', 'sales'), { id: 'sales-new-enquiry', label: 'New ' + enq, icon: 'plus', link: '/sales/enquiries', params: { add: 1 } }] },
+      { key: 'library', path: '/library/month', match: '/library', label: 'Library', icon: 'video', menu: links('library', 'library') }
+    ];
   });
   role = computed(() => this.cast.cast()?.users.find(u => u.name === this.session.user())?.role || '');
   wa = computed(() => this.cast.whatsapp(`Hello, this is ${this.session.user()} from ${this.cast.cast()?.name} [Hub].`));
@@ -214,15 +219,16 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   ngOnInit(){
     document.body.classList.add('in-shell'); setTop(pageColour());
-    this.system.set(this.route.snapshot.data['system']);
-    /* the other system starts collapsed, so the rail reads as one group with a door to the other */
-    const other = this.system() === 'library' ? 'sales' : 'library';
-    this.collapsed.set(new Set([other]));
     this.readTitle();
+    /* the group of the screen on show is open; the work with Business Booster is always open; the other folds away */
+    this.collapsed.set(new Set((['library', 'sales'] as Group[]).filter(g => g !== this.system())));
+    this.work.init();
     this.seen.open(); if (/^\/library\//.test(this.activeUrl())) this.seen.view(this.activeUrl().replace('/library/', ''));
     this.theme.apply();
     this.sub = this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe(() => {
-      const was = this.activeUrl(); this.readTitle();
+      const was = this.activeUrl(), g0 = this.system(); this.readTitle();
+      /* one shell for every screen now: moving to another group opens it and folds the other, as on first open */
+      if (this.system() !== g0) this.collapsed.set(new Set((['library', 'sales'] as Group[]).filter(g => g !== this.system())));
       /* the library screens a seat looks at are what BB reads in December */
       if (/^\/library\//.test(this.activeUrl())) this.seen.view(this.activeUrl().replace('/library/', ''));
       /* a screen change rises in and opens at its own top; a query-param change on the same screen does neither */
@@ -231,7 +237,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     this.tick(); this.timer = setInterval(() => this.tick(), 15000);
   }
   ngOnDestroy(){ this.setRail(false); document.body.classList.remove('in-shell'); clearInterval(this.timer); this.sub?.unsubscribe(); }
-  private readTitle(){ let r = this.route; while (r.firstChild) r = r.firstChild; this.title.set(r.snapshot.data['title'] || ''); this.activeUrl.set(this.router.url.split('?')[0]); }
+  private readTitle(){ let r = this.route; while (r.firstChild) r = r.firstChild; this.title.set(r.snapshot.data['title'] || ''); this.system.set((r.snapshot.data['group'] as Group) || 'work'); this.activeUrl.set(this.router.url.split('?')[0]); }
   private tick(){ const d = new Date();
     this.time.set(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`);
     this.date.set(longDate(d)); }

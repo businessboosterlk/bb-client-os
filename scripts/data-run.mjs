@@ -59,7 +59,7 @@ const cold = async h => { await p.goto('about:blank'); await p.goto(base + h); }
 hold = 1500;
 await p.goto(URL0); await p.waitForSelector('#biz'); await p.fill('#biz', 'cinnamon.lk'); await p.fill('#pin', 'WRONG'); await p.locator('.enter').tap();
 await p.waitForSelector('.door .err'); check('door, on the server: a wrong code is refused in words', /do not match/.test(await p.locator('.door .err').textContent()));
-await p.fill('#pin', 'HARNESS1'); const t0 = Date.now(); await p.locator('.enter').tap(); await p.waitForFunction(() => /#\/start/.test(location.hash), null, { timeout: 20000 });
+await p.fill('#pin', 'HARNESS1'); const t0 = Date.now(); await p.locator('.enter').tap(); await p.waitForFunction(() => /#\/chat/.test(location.hash), null, { timeout: 20000 });
 const toLauncher = Date.now() - t0;
 await go('#/sales/customers'); const skel = await p.locator('.skel').count(), loadingNow = await p.evaluate(() => window.__hub.loading());
 check('first open, nothing on the device, slow server: the door opens without waiting for the rows and the list draws the SHAPE of its content', skel === 1 && loadingNow && toLauncher < 3500, { skeleton: skel, loading: loadingNow, doorToLauncherMs: toLauncher });
@@ -71,14 +71,14 @@ check('capacity: all ' + N.toLocaleString('en-GB') + ' rows of every kind are he
 const unpaged = reads.filter(x => x.limit === null || x.offset === null), over = reads.filter(x => Number(x.limit) > CAP);
 check('every list read names a limit and an offset, and none asks for more than the database gives', reads.length > 0 && unpaged.length === 0 && over.length === 0, { reads: reads.length, unpaged: unpaged.length, over: over.length, perKind: reads.filter(x => x.kind === 'deals').length });
 const drawn = {};
-for (const [name, hash, sel] of [['dashboard', '#/sales/dashboard', '.kpi'], ['enquiries board', '#/sales/enquiries?view=board', '.board .dc'], ['enquiries list', '#/sales/enquiries?view=list', '.list.phone .li'], ['pipeline board', '#/sales/pipeline?view=board', '.board .dc'], ['pipeline list', '#/sales/pipeline?view=list', '.list.phone .li'], ['customers', '#/sales/customers', '.list.phone .li'], ['tasks', '#/sales/tasks', '.list .li']]) {
+for (const [name, hash, sel] of [['dashboard', '#/sales/dashboard', '.kpi'], ['enquiries board', '#/sales/enquiries?view=board', '.board .dc'], ['enquiries list', '#/sales/enquiries?view=list', '.list.phone .li'], ['pipeline board', '#/sales/pipeline?view=board', '.board .dc'], ['pipeline list', '#/sales/pipeline?view=list', '.list.phone .li'], ['customers', '#/sales/customers', '.list.phone .li'], ['tasks', '#/sales/follow-ups', '.list .li']]) {
   const t = Date.now(); await go(hash); await p.waitForSelector(sel, { timeout: 20000 }); drawn[name] = { elements: await els(), rows: await p.locator(sel).count(), ms: Date.now() - t }; }
 check('lists draw a window: every screen draws under 1,000 elements with ' + N.toLocaleString('en-GB') + ' rows behind it', Object.values(drawn).every(d => d.elements < 1000), drawn);
 check('a list shows thirty rows and says how many there are', drawn.customers.rows === 30 && /Showing 30 of 5,000/.test(await (async () => { await go('#/sales/customers'); return p.locator('.more').textContent(); })()), drawn.customers.rows);
 await p.locator('.fb-q input:visible').fill('Customer 4321'); await p.waitForTimeout(400);
 check('search reaches every row that is held, not only the thirty drawn', await p.locator('.list.phone .li').count() === 1 && /Customer 4321/.test(await p.locator('.list.phone .li').first().textContent()), await p.locator('.list.phone .li').count());
 await p.locator('.fb-q input:visible').fill('');
-await go('#/sales/tasks'); await p.locator('[data-act="task-new"]').tap(); await p.waitForSelector('.drawer.on'); const opts = await p.locator('#tk-deal option').count(); await p.keyboard.press('Escape'); await p.waitForTimeout(400);
+await go('#/sales/follow-ups'); await p.locator('[data-act="followup-new"]').tap(); await p.waitForSelector('.drawer.on'); const opts = await p.locator('#fu-deal option').count(); await p.keyboard.press('Escape'); await p.waitForTimeout(400);
 check('a picker draws thirty choices, never the whole book', opts <= 32, opts + ' options');
 
 /* 3. ONE SAVE READS ONE RECORD */
@@ -141,25 +141,25 @@ const stamp = await p.evaluate(async () => (await (await fetch('version.json?x='
 const shownStamp = (await p.locator('.r-build').textContent()).replace('Build ', '').trim(); await p.keyboard.press('Escape'); await p.waitForTimeout(300);
 check('the build stamp is one stamp: in the app, in the version file, and written where a person can read it out', stamp === shownStamp && /^\d{4}-\d\d-\d\d \d\d:\d\d$/.test(stamp), { versionFile: stamp, onScreen: shownStamp });
 /* the session ends */
-gone = true; await cold('#/sales/tasks'); await p.waitForFunction(() => /#\/login/.test(location.hash), null, { timeout: 20000 });
+gone = true; await cold('#/sales/follow-ups'); await p.waitForFunction(() => /#\/login/.test(location.hash), null, { timeout: 20000 });
 const why = await p.locator('.door .err').textContent().catch(() => '');
 check('a session the server no longer accepts goes to the door with a word why', /session ended/i.test(why), why);
-gone = false; await p.fill('#biz', 'cinnamon.lk'); await p.fill('#pin', 'HARNESS1'); await p.locator('.enter').tap(); await p.waitForFunction(() => /#\/start/.test(location.hash));
+gone = false; await p.fill('#biz', 'cinnamon.lk'); await p.fill('#pin', 'HARNESS1'); await p.locator('.enter').tap(); await p.waitForFunction(() => /#\/chat/.test(location.hash));
 await go('#/sales/enquiries?view=list'); await p.waitForSelector('.list.phone .li'); await p.locator('[data-act="enquiry-new"]').tap(); await p.waitForSelector('.drawer.on');
 check('a draft survives the sign in card', (await p.inputValue('#en-name')) === 'Half Typed Ltd' && (await p.inputValue('#en-wants')) === 'Nine crates by Friday');
 await p.keyboard.press('Escape'); await p.waitForTimeout(300);
 
 /* 6b. ANOTHER CLIENT ON THE SAME DEVICE after the first one's session ended without a sign out */
 await p.locator('[data-act="enquiry-new"]').tap(); await p.waitForSelector('.drawer.on'); await p.fill('#en-name', 'Left Behind Ltd'); await p.keyboard.press('Escape'); await p.waitForTimeout(700);
-gone = true; await cold('#/sales/tasks'); await p.waitForFunction(() => /#\/login/.test(location.hash), null, { timeout: 20000 }); gone = false;
+gone = true; await cold('#/sales/follow-ups'); await p.waitForFunction(() => /#\/login/.test(location.hash), null, { timeout: 20000 }); gone = false;
 const idb = () => p.evaluate(async () => { const db = await new Promise((res, rej) => { const r = indexedDB.open('hub_copy', 1); r.onupgradeneeded = () => r.result.createObjectStore('rows'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); const keys = await new Promise(res => { const q = db.transaction('rows').objectStore('rows').getAllKeys(); q.onsuccess = () => res(q.result); }); db.close(); return keys.map(String); });
 const leftCopy = await idb();
-await p.fill('#biz', 'other.lk'); await p.fill('#pin', 'HARNESS2'); await p.locator('.enter').tap(); await p.waitForFunction(() => /#\/start/.test(location.hash));
+await p.fill('#biz', 'other.lk'); await p.fill('#pin', 'HARNESS2'); await p.locator('.enter').tap(); await p.waitForFunction(() => /#\/chat/.test(location.hash));
 const nowCopy = await idb(), leftDrafts = await p.evaluate(() => Object.keys(localStorage).filter(k => /^hub_(draft|outbox)_demo/.test(k)));
 await go('#/sales/customers'); await p.waitForTimeout(600); const otherSees = await held();
 check('another client signs in on the same device: everything the first one left is removed before they see a screen', leftCopy.filter(k => k.startsWith('demo:')).length === 5 && nowCopy.filter(k => k.startsWith('demo:')).length === 0 && leftDrafts.length === 0 && otherSees.customers === 0 && otherSees.enquiries === 0, { before: leftCopy.length, after: nowCopy.filter(k => k.startsWith('demo:')).length, draftsLeft: leftDrafts.length, otherSees });
 await p.locator('[data-act="menu"]').tap(); await p.waitForSelector('.rail.open'); await p.locator('[data-act="rail-sign-out"]').tap(); await p.waitForFunction(() => /#\/login/.test(location.hash));
-await p.fill('#biz', 'cinnamon.lk'); await p.fill('#pin', 'HARNESS1'); await p.locator('.enter').tap(); await p.waitForFunction(() => /#\/start/.test(location.hash));
+await p.fill('#biz', 'cinnamon.lk'); await p.fill('#pin', 'HARNESS1'); await p.locator('.enter').tap(); await p.waitForFunction(() => /#\/chat/.test(location.hash));
 await go('#/sales/enquiries?view=list'); await p.waitForFunction(n => window.__hub.held().customers >= n, N, { timeout: 120000 }); await p.locator('[data-act="enquiry-new"]').tap(); await p.waitForSelector('.drawer.on'); await p.fill('#en-name', 'A draft to clear'); await p.keyboard.press('Escape'); await p.waitForTimeout(700);
 
 /* 7. SIGNING OUT LEAVES NOTHING BEHIND */

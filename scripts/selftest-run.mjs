@@ -10,7 +10,7 @@ for (const [tag, opt] of [['phone', {}], ['desk', { desk: true, width: 1440 }]])
   const run = async (name, url) => { lines.length = 0; await p.goto('about:blank'); await p.goto(url); await p.waitForFunction(() => window.__bbos, null, { timeout: 60000 }); const r = await p.evaluate(() => window.__bbos); total += r.total; bad += r.total - r.pass; console.log(`--- ${tag} · ${name}: ${r.pass}/${r.total}`); lines.filter(l => /^FAIL/.test(l)).forEach(l => console.log('  ' + l)); };
   await run('door', base + '?selftest');
   await signIn(p, base);
-  await run('launcher', base + '?selftest#/start');
+  await run('chat', base + '?selftest#/chat');
   await run('dashboard', base + '?selftest#/sales/dashboard');
   await run('pipeline', base + '?selftest#/sales/pipeline');
   await c.close();

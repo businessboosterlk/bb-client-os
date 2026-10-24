@@ -2,6 +2,8 @@ import { CastService } from './cast.service';
 import { DataService, waLink } from './data.service';
 import { lead, updatedLine, newestAdded, searchLibrary, shouldHint, isNewSince, emptyLine, hasAnything } from './library';
 import { demoSeed } from './demo-seed';
+import { workSeed } from './work-seed';
+import { needs, changeAsked } from './work';
 
 /* ?selftest runs the harness on THIS cast in THIS browser and prints one line per
    check. It uses a throwaway store key so a client's real rows are never touched,
@@ -56,8 +58,11 @@ export async function runSelftest(cast: CastService, data: DataService){
   const tabs = document.querySelector('.bm-bar') as HTMLElement | null;
   if (rail && tabs) {
     ok('nav matches width: rail on desk, tab bar on phone', desk ? getComputedStyle(rail).visibility !== 'hidden' && tabs.getBoundingClientRect().height === 0 : tabs.getBoundingClientRect().height > 0, innerWidth + 'px');
-    ok('rail carries two groups, Library and Sales, with a divider', document.querySelectorAll('.rail .grp').length === 2 && !!document.querySelector('.rail hr.div'));
-    ok('the other system starts collapsed', document.querySelectorAll('.rail .grp.off').length === 1);
+    ok('rail carries three groups, the work with Business Booster, Library and Sales, with dividers', document.querySelectorAll('.rail .grp').length === 3 && document.querySelectorAll('.rail hr.div').length === 2);
+    ok('the work with Business Booster and the screen on show are open, the rest folded', (() => { const g = [...document.querySelectorAll('.rail .grp')]; const cur = g.find(x => x.querySelector('a[aria-current="page"]'));
+      return !!g[0] && !g[0].classList.contains('off') && (!cur || !cur.classList.contains('off')); })());
+    ok('the phone bar carries five places, Chat first', desk || [...document.querySelectorAll('.bm-btn')].map(b => (b as HTMLElement).dataset['act']).join(',') === 'tab-chat,tab-posts,tab-tasks,tab-sales,tab-library',
+      [...document.querySelectorAll('.bm-btn')].map(b => (b as HTMLElement).dataset['act']).join(','));
     ok('every icon is a stroke svg, none an image or emoji', [...document.querySelectorAll('bb-icon svg')].length > 0 && [...document.querySelectorAll('.rail nav a')].every(a => a.querySelector('svg')));
     ok('the phone bar is a small floating pill, not a full-width strip', desk || (tabs.getBoundingClientRect().width < innerWidth * 0.75 && parseFloat(getComputedStyle(tabs).borderRadius) >= 16), desk ? 'desk' : Math.round(tabs.getBoundingClientRect().width) + 'px of ' + innerWidth);
     ok('the panel grows on the reference curve, 300ms, from the bottom centre, without clipping its shadow', (() => { if (desk) return true; const sub = document.querySelector('.bm-sub') as HTMLElement | null; const card = document.querySelector('.bm-card') as HTMLElement | null; if (!sub || !card) return false; const cs = getComputedStyle(sub), cc = getComputedStyle(card); const o = cs.transformOrigin.split(' ').map(parseFloat); const r = sub.getBoundingClientRect();
@@ -82,13 +87,12 @@ export async function runSelftest(cast: CastService, data: DataService){
     ok('the time reads at a glance: 26px or larger', (() => { const e = document.querySelector('.r-clock strong'); return !!e && parseFloat(getComputedStyle(e).fontSize) >= 26 && /^\d{2}:\d{2}$/.test(e.textContent || ''); })());
     ok('tap targets in the rail and tab bar are 40px or taller', [...document.querySelectorAll('.rail nav a, .bm-btn')].filter(a => a.getBoundingClientRect().height > 0).every(a => a.getBoundingClientRect().height >= 40));
   } else {
-    /* no shell on this screen: it must be the door or the launcher, and each has its own anatomy */
-    const door = document.querySelector('.door .card'), doors = document.querySelectorAll('.door');
-    ok('a screen without the shell is the door or the launcher', !!door || doors.length === 2, door ? 'login' : doors.length + ' doors');
+    /* no shell on this screen: since 24 Oct 2026 that is only ever the door (the launcher was replaced by the bar) */
+    const door = document.querySelector('.door .card');
+    ok('a screen without the shell is the door', !!door, door ? 'login' : 'no door');
     ok('the door asks for a business name and a code, nothing else', !door || (!!document.getElementById('biz') && !!document.getElementById('pin') && document.querySelectorAll('.door .card input').length === 2));
     ok('the PIN field cannot zoom the page on a phone', !door || parseFloat(getComputedStyle(document.getElementById('pin')!).fontSize) >= (matchMedia('(pointer:coarse)').matches ? 16 : 14));
-    ok('the launcher offers exactly two doors, Library and Sales', !!door || (doors.length === 2 && /library/i.test(doors[0].textContent || '') && /sales/i.test(doors[1].textContent || '')));
-    ok('sign in and the doors are 44px or taller', [...document.querySelectorAll('.door .enter, .door')].every(a => a.getBoundingClientRect().height >= 44));
+    ok('sign in is 44px or taller', [...document.querySelectorAll('.door .enter')].every(a => a.getBoundingClientRect().height >= 44));
     ok('the static alias book lists only PIN-protected local casts', await fetch('casts/index.json', { cache: 'no-cache' }).then(r => r.json()).then((idx: any[]) => idx.every(i => i.slug === 'demo')).catch(() => false));
     ok('the mark sits on a dark card, never white on white', !door || (() => { const bg = getComputedStyle(document.querySelector('.card')!).backgroundColor.match(/\d+/g)!.map(Number); return (bg[0] * .2126 + bg[1] * .7152 + bg[2] * .0722) / 255 < .25 && !!document.querySelector('.card img.mark'); })());
     ok('the door is black and white, no accent anywhere', !door || (() => {
@@ -178,6 +182,14 @@ export async function runSelftest(cast: CastService, data: DataService){
     ok('one search reaches titles, kinds and business facts', !hitTitle || (searchLibrary(L, hitTitle.slice(0, 6)).hits.some(h => h.item.title === hitTitle) && searchLibrary(L, 'zzqqxx').hits.length === 0 && (!L.facts.length || searchLibrary(L, L.facts[0].k.slice(0, 5)).facts.length >= 1) && searchLibrary(L, 'a').hits.length === 0));
     ok('the install hint shows on a touch screen that is not the app, never once dismissed or installed, never inside WhatsApp', shouldHint(true, false, false, 'direct') && !shouldHint(false, false, false, 'direct') && !shouldHint(true, true, false, 'direct') && !shouldHint(true, false, true, 'direct') && !shouldHint(true, false, false, 'wa'));
     const seed = demoSeed(), seedRows = Object.values(seed).flat();
+    /* THE DEMO WORKSPACE IS A LIVING MONTH, honest in every corner (mould/workspace/PLAN.md) */
+    const ws = workSeed(Date.now()), wsTxt = JSON.stringify(ws);
+    const ids = new Set([...ws.tasks.map(t => t.id), ...ws.posts.map(p => p.id)]), msgIds = new Set(ws.msgs.map(m => m.id));
+    ok('the demo workspace starts with a living month: a request asked, one outside the package, a late task with a reason and a new date, posts waiting', ws.msgs.length >= 15 && ws.tasks.some(t => t.asked) && ws.tasks.some(t => !!t.outside)
+      && ws.tasks.some(t => !!t.late?.reason && !!t.late?.newDue) && needs(ws, new Date().toISOString().slice(0, 10)).some(n => n.key === 'posts' && n.count >= 1) && ws.posts.some(p => p.versions.length > 1 && changeAsked({ ...p, versions: p.versions.slice(0, 1) })), ws.msgs.length + ' messages');
+    ok('every card in the demo chat points at a real task or post, and every reply and source at a real message', ws.msgs.every(m => (!m.ref || ids.has(m.ref.id)) && (!m.reply || msgIds.has(m.reply))) && ws.tasks.every(t => !t.source || msgIds.has(t.source)));
+    ok('the demo workspace names no real person on the team and carries no phone number', ws.msgs.filter(m => m.side === 'bb').every(m => m.role === 'Business Booster' && /team|manager/i.test(m.by)) && !/\b0?7\d[\d\s-]{7,}\b/.test(wsTxt));
+    ok('silence is never a yes: only an approved or live post carries who approved it', ws.posts.every(p => (p.status === 'approved' || p.status === 'live') === !!p.approvedBy));
     ok('the demo book starts with a working month, no phone number anywhere in it', seedRows.length >= 12 && !/\b0?7\d[\d\s-]{7,}\b/.test(JSON.stringify(seed)) && seed.deals.some(d => d.stage === 'won') && seed.customers.length >= 1, seedRows.length + ' rows');
   }
   const pass = T.filter(t => t[0]).length;

@@ -12,53 +12,55 @@ import { FilterBarComponent, FilterDef } from '../../ui/filter-bar.component';
 import { MoreComponent, WINDOW } from '../../ui/more.component';
 
 const BLANK = { text: '', due: '', who: '', dealId: '' };
-/* The task book. What has to happen, by when, for whom. A task can hang off a deal so the
+/* FOLLOW UPS, the client's own sales book of things to do (was "Tasks" until 24 Oct 2026, renamed so it never
+   mixes with the tasks between the client and Business Booster, pages/work). Rows stay in the 'tasks' kind on the
+   server, so no table changes. What has to happen, by when, for whom. A task can hang off a deal so the
    dashboard's "needs attention" fills itself from here. Overdue first. */
 @Component({
-  selector: 'bb-tasks',
+  selector: 'bb-follow-ups',
   standalone: true,
   imports: [FormsModule, DrawerComponent, IconComponent, FilterBarComponent, MoreComponent],
   template: `
-    <div class="ph"><div><h1 class="t-h1">Tasks</h1><p>{{ sub() }}</p></div>
-      <div class="ph-right"><button class="btn" type="button" data-act="task-new" (click)="openAdd()"><bb-icon name="plus"/><span>New task</span></button></div></div>
+    <div class="ph"><div><h1 class="t-h1">Follow ups</h1><p>{{ sub() }}</p></div>
+      <div class="ph-right"><button class="btn" type="button" data-act="followup-new" (click)="openAdd()"><bb-icon name="plus"/><span>New follow up</span></button></div></div>
     <div class="kpi">
       <div class="card"><div class="k-label">Overdue</div><div class="k-val" [class.red]="overdue()">{{ overdue() }}</div><div class="k-sub">need doing first</div></div>
       <div class="card"><div class="k-label">Today</div><div class="k-val">{{ dueToday() }}</div><div class="k-sub">due by tonight</div></div>
       <div class="card"><div class="k-label">Open</div><div class="k-val">{{ data.openTasks().length }}</div><div class="k-sub">in the book</div></div>
       <div class="card"><div class="k-label">Done this week</div><div class="k-val up">{{ doneWeek() }}</div><div class="k-sub">ticked off</div></div>
     </div>
-    <bb-filter-bar class="fbar" [state]="f" [query]="q" [defs]="defs()" placeholder="Search tasks" label="Search tasks"
-      [count]="rows().length" noun="task" nouns="tasks" store="tasks"/>
+    <bb-filter-bar class="fbar" [state]="f" [query]="q" [defs]="defs()" placeholder="Search follow ups" label="Search follow ups"
+      [count]="rows().length" noun="follow up" nouns="follow ups" store="follow-ups"/>
     @if (data.loading()) {
-      <div class="card skel" aria-busy="true" aria-label="Loading tasks"><i></i><i></i><i></i><i></i></div>
+      <div class="card skel" aria-busy="true" aria-label="Loading follow ups"><i></i><i></i><i></i><i></i></div>
     } @else {
       <div class="card list">
         @for (t of rows().slice(0, shown()); track t.id) {
           <div class="li" [class.done]="t.done">
-            <button class="tick" type="button" data-act="task-tick" [class.on]="t.done" (click)="data.toggleTask(t.id)" [attr.aria-pressed]="t.done" [attr.aria-label]="(t.done ? 'Mark not done: ' : 'Mark done: ') + t.text"><span class="box"><bb-icon name="check"/></span></button>
-            <button type="button" class="tx" data-act="task-open" (click)="open(t)"><strong>{{ t.text }}</strong><span>{{ meta(t) }}</span></button>
+            <button class="tick" type="button" data-act="followup-tick" [class.on]="t.done" (click)="data.toggleTask(t.id)" [attr.aria-pressed]="t.done" [attr.aria-label]="(t.done ? 'Mark not done: ' : 'Mark done: ') + t.text"><span class="box"><bb-icon name="check"/></span></button>
+            <button type="button" class="tx" data-act="followup-open" (click)="open(t)"><strong>{{ t.text }}</strong><span>{{ meta(t) }}</span></button>
             @if (!t.done && t.due && t.due < todayStr) { <span class="pill over">Overdue</span> }
             @else if (!t.done && t.due === todayStr) { <span class="pill quoted">Today</span> }
           </div>
-        } @empty { <div class="empty"><strong>{{ filtered() ? 'No match' : 'Nothing to do' }}</strong>{{ filtered() ? 'Try another word or clear the filters.' : 'Add a task and it lands here, overdue first.' }}</div> }
+        } @empty { <div class="empty"><strong>{{ filtered() ? 'No match' : 'Nothing to do' }}</strong>{{ filtered() ? 'Try another word or clear the filters.' : 'Add a follow up and it lands here, overdue first.' }}</div> }
         <bb-more [total]="rows().length" [shown]="min(shown(), rows().length)" (more)="shown.set(shown() + 30)"/>
       </div>
     }
 
-    <bb-drawer [open]="adding()" title="New task" [message]="msg()" (closed)="adding.set(false)">
+    <bb-drawer [open]="adding()" title="New follow up" [message]="msg()" (closed)="adding.set(false)">
       <ng-template #body>
-      @if (restored()) { <div class="kept"><span>Picked up where you left off.</span><button type="button" class="btn quiet sm" data-act="task-draft-clear" (click)="fresh()">Start again</button></div> }
+      @if (restored()) { <div class="kept"><span>Picked up where you left off.</span><button type="button" class="btn quiet sm" data-act="followup-draft-clear" (click)="fresh()">Start again</button></div> }
       <div class="form-grid" (input)="keep()" (change)="keep()">
-        <div class="field span"><label for="tk-text">What has to happen</label><input id="tk-text" type="text" [(ngModel)]="draft.text" placeholder="Send the price list to Nimal" autocomplete="off" enterkeyhint="next" [attr.aria-invalid]="!!msg()"></div>
-        <div class="field"><label for="tk-due">By when</label><input id="tk-due" type="date" [class.empty]="!draft.due" [(ngModel)]="draft.due"></div>
-        <div class="field"><label for="tk-who">Who</label><select id="tk-who" [(ngModel)]="draft.who"><option value="">Anyone</option>@for (u of seats(); track u) { <option [value]="u">{{ u }}</option> }</select></div>
-        <div class="field span"><label for="tk-deal">About</label><select id="tk-deal" [(ngModel)]="draft.dealId"><option value="">Nothing in particular</option>@for (d of dealChoices(draft.dealId); track d.id) { <option [value]="d.id">{{ d.name }}</option> }</select>
+        <div class="field span"><label for="fu-text">What has to happen</label><input id="fu-text" type="text" [(ngModel)]="draft.text" placeholder="Send the price list to Nimal" autocomplete="off" enterkeyhint="next" [attr.aria-invalid]="!!msg()"></div>
+        <div class="field"><label for="fu-due">By when</label><input id="fu-due" type="date" [class.empty]="!draft.due" [(ngModel)]="draft.due"></div>
+        <div class="field"><label for="fu-who">Who</label><select id="fu-who" [(ngModel)]="draft.who"><option value="">Anyone</option>@for (u of seats(); track u) { <option [value]="u">{{ u }}</option> }</select></div>
+        <div class="field span"><label for="fu-deal">About</label><select id="fu-deal" [(ngModel)]="draft.dealId"><option value="">Nothing in particular</option>@for (d of dealChoices(draft.dealId); track d.id) { <option [value]="d.id">{{ d.name }}</option> }</select>
           @if (data.openDeals().length > 30) { <span class="hint">The 30 deals touched most recently.</span> }</div>
       </div>
       </ng-template>
       <ng-template #foot>
-        <button class="btn" type="button" data-act="task-add" [disabled]="busy()" (click)="save()">Add task</button>
-        <button class="btn quiet" type="button" data-act="task-add-cancel" (click)="adding.set(false)">Cancel</button>
+        <button class="btn" type="button" data-act="followup-add" [disabled]="busy()" (click)="save()">Add follow up</button>
+        <button class="btn quiet" type="button" data-act="followup-add-cancel" (click)="adding.set(false)">Cancel</button>
       </ng-template>
     </bb-drawer>
 
@@ -67,10 +69,10 @@ const BLANK = { text: '', due: '', who: '', dealId: '' };
       @if (sel(); as t) {
         @if (editing()) {
           <div class="form-grid" (input)="keepEdit()" (change)="keepEdit()">
-            <div class="field span"><label for="te-text">What has to happen</label><input id="te-text" type="text" [(ngModel)]="ed.text" autocomplete="off" enterkeyhint="next" [attr.aria-invalid]="!!emsg()"></div>
-            <div class="field"><label for="te-due">By when</label><input id="te-due" type="date" [class.empty]="!ed.due" [(ngModel)]="ed.due"></div>
-            <div class="field"><label for="te-who">Who</label><select id="te-who" [(ngModel)]="ed.who"><option value="">Anyone</option>@for (u of seats(); track u) { <option [value]="u">{{ u }}</option> }</select></div>
-            <div class="field span"><label for="te-deal">About</label><select id="te-deal" [(ngModel)]="ed.dealId"><option value="">Nothing in particular</option>@for (d of dealChoices(ed.dealId); track d.id) { <option [value]="d.id">{{ d.name }}</option> }</select></div>
+            <div class="field span"><label for="fe-text">What has to happen</label><input id="fe-text" type="text" [(ngModel)]="ed.text" autocomplete="off" enterkeyhint="next" [attr.aria-invalid]="!!emsg()"></div>
+            <div class="field"><label for="fe-due">By when</label><input id="fe-due" type="date" [class.empty]="!ed.due" [(ngModel)]="ed.due"></div>
+            <div class="field"><label for="fe-who">Who</label><select id="fe-who" [(ngModel)]="ed.who"><option value="">Anyone</option>@for (u of seats(); track u) { <option [value]="u">{{ u }}</option> }</select></div>
+            <div class="field span"><label for="fe-deal">About</label><select id="fe-deal" [(ngModel)]="ed.dealId"><option value="">Nothing in particular</option>@for (d of dealChoices(ed.dealId); track d.id) { <option [value]="d.id">{{ d.name }}</option> }</select></div>
           </div>
         } @else {
           <div class="sheet-pills">
@@ -89,11 +91,11 @@ const BLANK = { text: '', due: '', who: '', dealId: '' };
       </ng-template>
       <ng-template #foot>@if (sel(); as t) {
         @if (editing()) {
-          <button class="btn" type="button" data-act="task-save" [disabled]="busy()" (click)="saveEdit(t)">Save changes</button>
-          <button class="btn quiet" type="button" data-act="task-edit-cancel" (click)="cancelEdit(t)">Cancel</button>
+          <button class="btn" type="button" data-act="followup-save" [disabled]="busy()" (click)="saveEdit(t)">Save changes</button>
+          <button class="btn quiet" type="button" data-act="followup-edit-cancel" (click)="cancelEdit(t)">Cancel</button>
         } @else {
-          <button class="btn" type="button" data-act="task-done" (click)="toggle(t)"><bb-icon name="check"/><span>{{ t.done ? 'Mark not done' : 'Mark done' }}</span></button>
-          <button class="btn quiet warn" type="button" data-act="task-remove" (click)="remove(t)">Remove</button>
+          <button class="btn" type="button" data-act="followup-done" (click)="toggle(t)"><bb-icon name="check"/><span>{{ t.done ? 'Mark not done' : 'Mark done' }}</span></button>
+          <button class="btn quiet warn" type="button" data-act="followup-remove" (click)="remove(t)">Remove</button>
         }
       }</ng-template>
     </bb-drawer>`,
@@ -106,7 +108,7 @@ const BLANK = { text: '', due: '', who: '', dealId: '' };
     .li .tx{border:0;background:none;padding:0;font:inherit;color:inherit;text-align:left;cursor:pointer;min-height:40px;display:flex;flex-direction:column;justify-content:center}
     .li.done .tx strong{text-decoration:line-through;color:var(--muted)}`]
 })
-export class TasksComponent implements OnInit, OnDestroy {
+export class FollowUpsComponent implements OnInit, OnDestroy {
   cast = inject(CastService); data = inject(DataService); private drafts = inject(DraftService); private ask = inject(AskService); private route = inject(ActivatedRoute); private router = inject(Router);
   niceDate = niceDate; todayStr = today(); min = Math.min;
   q = signal(''); f = signal<Record<string, string>>({}); shown = signal(WINDOW);
@@ -115,7 +117,7 @@ export class TasksComponent implements OnInit, OnDestroy {
   draft: typeof BLANK = { ...BLANK }; ed: typeof BLANK = { ...BLANK };
   seats = computed(() => (this.cast.cast()?.users || []).map(u => u.name));
   defs = computed<FilterDef[]>(() => [
-    { key: 'show', label: 'Show', all: 'Open tasks', options: [{ value: 'overdue', label: 'Overdue' }, { value: 'today', label: 'Due today' }, { value: 'done', label: 'Done' }, { value: 'all', label: 'Every task' }] },
+    { key: 'show', label: 'Show', all: 'Open follow ups', options: [{ value: 'overdue', label: 'Overdue' }, { value: 'today', label: 'Due today' }, { value: 'done', label: 'Done' }, { value: 'all', label: 'Every follow up' }] },
     { key: 'who', label: 'Who', all: 'Anyone', options: this.seats().map(s => ({ value: s, label: s })) }]);
   private qs: any;
   constructor(){ effect(() => { this.q(); this.f(); this.shown.set(WINDOW); }); }
@@ -146,32 +148,32 @@ export class TasksComponent implements OnInit, OnDestroy {
   dealChoices(keep: string){ const open = [...this.data.openDeals()].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')).slice(0, 30);
     if (keep && !open.some(d => d.id === keep)) { const d = this.data.deals().find(x => x.id === keep); if (d) open.unshift(d); } return open; }
 
-  openAdd(){ this.restored.set(this.drafts.has('task-new')); this.draft = this.drafts.load('task-new', BLANK); this.msg.set(''); this.adding.set(true); }
-  keep(){ this.drafts.keep('task-new', this.draft); if (this.msg() && this.draft.text.trim()) this.msg.set(''); }
-  fresh(){ this.drafts.clear('task-new'); this.draft = { ...BLANK }; this.restored.set(false); this.msg.set(''); }
+  openAdd(){ this.restored.set(this.drafts.has('followup-new')); this.draft = this.drafts.load('followup-new', BLANK); this.msg.set(''); this.adding.set(true); }
+  keep(){ this.drafts.keep('followup-new', this.draft); if (this.msg() && this.draft.text.trim()) this.msg.set(''); }
+  fresh(){ this.drafts.clear('followup-new'); this.draft = { ...BLANK }; this.restored.set(false); this.msg.set(''); }
   async save(){
-    const text = this.draft.text.trim(); if (!text) { this.msg.set('Write what has to happen first.'); document.getElementById('tk-text')?.focus(); return; }
+    const text = this.draft.text.trim(); if (!text) { this.msg.set('Write what has to happen first.'); document.getElementById('fu-text')?.focus(); return; }
     if (this.busy()) return; this.busy.set(true);
-    try { await this.data.addTask({ ...this.draft, text }); this.drafts.clear('task-new'); this.adding.set(false); this.data.toast('Task added'); }
+    try { await this.data.addTask({ ...this.draft, text }); this.drafts.clear('followup-new'); this.adding.set(false); this.data.toast('Follow up added'); }
     finally { this.busy.set(false); }
   }
-  open(t: Task){ this.sel.set(t); this.emsg.set(''); const key = 'task-edit-' + t.id;
+  open(t: Task){ this.sel.set(t); this.emsg.set(''); const key = 'followup-edit-' + t.id;
     if (this.drafts.has(key)) { this.ed = this.drafts.load(key, this.from(t)); this.editing.set(true); } else this.editing.set(false); }
   closeSheet(){ this.sel.set(null); this.editing.set(false); }
   private from(t: Task){ return { text: t.text || '', due: t.due || '', who: t.who || '', dealId: t.dealId || '' }; }
-  beginEdit(){ const t = this.sel(); if (!t) return; this.ed = this.drafts.load('task-edit-' + t.id, this.from(t)); this.emsg.set(''); this.editing.set(true); }
-  keepEdit(){ const t = this.sel(); if (t) this.drafts.keep('task-edit-' + t.id, this.ed); if (this.emsg() && this.ed.text.trim()) this.emsg.set(''); }
-  cancelEdit(t: Task){ this.drafts.clear('task-edit-' + t.id); this.editing.set(false); this.emsg.set(''); }
+  beginEdit(){ const t = this.sel(); if (!t) return; this.ed = this.drafts.load('followup-edit-' + t.id, this.from(t)); this.emsg.set(''); this.editing.set(true); }
+  keepEdit(){ const t = this.sel(); if (t) this.drafts.keep('followup-edit-' + t.id, this.ed); if (this.emsg() && this.ed.text.trim()) this.emsg.set(''); }
+  cancelEdit(t: Task){ this.drafts.clear('followup-edit-' + t.id); this.editing.set(false); this.emsg.set(''); }
   async saveEdit(t: Task){
-    const text = this.ed.text.trim(); if (!text) { this.emsg.set('A task needs its words. Put them back to save.'); return; }
+    const text = this.ed.text.trim(); if (!text) { this.emsg.set('A follow up needs its words. Put them back to save.'); return; }
     if (this.busy()) return; this.busy.set(true);
     try { const r = await this.data.updateTask(t.id, { text, due: this.ed.due, who: this.ed.who, dealId: this.ed.dealId }); if (r) this.sel.set(r);
-      this.drafts.clear('task-edit-' + t.id); this.editing.set(false); this.data.toast('Saved'); }
+      this.drafts.clear('followup-edit-' + t.id); this.editing.set(false); this.data.toast('Saved'); }
     finally { this.busy.set(false); }
   }
   async toggle(t: Task){ await this.data.toggleTask(t.id); this.closeSheet(); this.data.toast(t.done ? 'Back in the book' : 'Done'); }
   async remove(t: Task){
-    if (!(await this.ask.confirm({ title: 'Remove this task?', body: t.text, yes: 'Remove', danger: true }))) return;
-    await this.data.removeTask(t.id); this.drafts.clear('task-edit-' + t.id); this.closeSheet(); this.data.toast('Task removed');
+    if (!(await this.ask.confirm({ title: 'Remove this follow up?', body: t.text, yes: 'Remove', danger: true }))) return;
+    await this.data.removeTask(t.id); this.drafts.clear('followup-edit-' + t.id); this.closeSheet(); this.data.toast('Follow up removed');
   }
 }
