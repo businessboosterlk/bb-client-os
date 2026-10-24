@@ -327,15 +327,19 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     document.body.classList.remove('composing');
   }
 
+  /* only a keyboard lifts the composer: measured while the person is typing, and anything under 120px (the browser's own
+     bar shrinking during a scroll) is not a keyboard. Before 24 Oct 2026 every scroll re-measured and the box jumped. */
   private updateKb(): void {
     const vv = window.visualViewport;
-    if (vv) {
-      this.kb.set(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)));
-    }
+    if (!vv || !this.typing()) { if (this.kb() !== 0) this.kb.set(0); return; }
+    const raw = Math.round(window.innerHeight - vv.height - vv.offsetTop);
+    const next = raw > 120 ? raw : 0;
+    if (next !== this.kb()) this.kb.set(next);
   }
 
   setTyping(v: boolean): void {
     this.typing.set(v);
+    this.updateKb();
     document.body.classList.toggle('composing', v);
   }
 

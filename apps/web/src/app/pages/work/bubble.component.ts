@@ -314,6 +314,9 @@ export class BubbleComponent {
   private swipeStartY = 0;
   private swipeDistance = signal(0);
   private swipeEmitted = false;
+  /* Thulaib, 24 Oct 2026, the chat flickered under a scrolling thumb: a scroll starts with a pixel or two of sideways
+     drift and the bubble followed it. A gesture now decides its direction once, after 10px, and keeps it. */
+  private swipeLock: 'x' | 'y' | null = null;
 
   readonly timeOfDay = timeOfDay;
   readonly summary = summary;
@@ -343,6 +346,7 @@ export class BubbleComponent {
     this.swipeStartY = event.clientY;
     this.swipeDistance.set(0);
     this.swipeEmitted = false;
+    this.swipeLock = null;
   }
 
   onPointerMove(event: PointerEvent) {
@@ -351,9 +355,12 @@ export class BubbleComponent {
     }
     const dx = event.clientX - this.swipeStartX;
     const dy = event.clientY - this.swipeStartY;
-    if (dx > 0 && dx > Math.abs(dy)) {
-      this.swipeDistance.set(Math.min(dx, 64));
+    if (this.swipeLock === null) {
+      if (Math.hypot(dx, dy) < 10) return;
+      this.swipeLock = dx > 0 && Math.abs(dx) > Math.abs(dy) * 1.5 ? 'x' : 'y';
     }
+    if (this.swipeLock !== 'x') return;
+    this.swipeDistance.set(Math.max(0, Math.min(dx - 10, 64)));
   }
 
   onPointerUp(event: PointerEvent) {
@@ -361,7 +368,7 @@ export class BubbleComponent {
       return;
     }
     const d = this.swipeDistance();
-    if (d >= 56) {
+    if (d >= 46) {
       this.swipeEmitted = true;
       this.reply.emit(this.msg());
     }

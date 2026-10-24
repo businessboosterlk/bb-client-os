@@ -36,6 +36,7 @@ if [ "$QUICK" != "--quick" ]; then
   run "every screen measured"  node scripts/ui-walk.mjs
   run "house style, the words" style
   run "click path"             node scripts/click-path.mjs
+  run "chat holds still"       node scripts/scroll-steady.mjs
   run "data laws"              node scripts/data-run.mjs
   run "tenant wall"            node scripts/tenant-wall.mjs
 fi
