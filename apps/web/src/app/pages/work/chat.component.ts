@@ -104,10 +104,10 @@ import { WorkSoonComponent } from '../../ui/work-soon.component';
     }
   `,
   styles: `
+    /* Thulaib, 24 Oct 2026: on a laptop the chat runs edge to edge like WhatsApp on a desk, the team on the left and the
+       client on the right, never a narrow column in the middle */
     :host {
       display: block;
-      max-width: 820px;
-      margin: 0 auto;
     }
 
     .head {
@@ -227,8 +227,9 @@ import { WorkSoonComponent } from '../../ui/work-soon.component';
 
     .dock > bb-composer {
       display: block;
-      max-width: 820px;
-      margin: 0 auto;
+    }
+    @media (min-width: 1020px) {
+      .dock > bb-composer { padding-left: 24px; padding-right: 24px; }
     }
 
     .big {

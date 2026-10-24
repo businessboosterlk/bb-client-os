@@ -124,6 +124,9 @@ export interface BubbleCard {
       gap: 2px;
       max-width: min(84%, 420px);
     }
+    @media (min-width: 1020px) {
+      :host([data-msg]) .row { max-width: min(62%, 640px); }
+    }
     :host.mine .row {
       flex-direction: row-reverse;
     }

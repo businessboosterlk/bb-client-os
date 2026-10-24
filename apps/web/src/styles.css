@@ -178,6 +178,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 
 /* page chrome inside the shell */
 .page{padding:22px 24px calc(28px + var(--sab));max-width:1180px}
+/* the chat takes the whole width beside the rail (24 Oct 2026) */
+.page:has(> bb-chat){max-width:none}
 .ph{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:18px;flex-wrap:wrap}
 .ph-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:1}
 .ph p{color:var(--muted);font-size:13.5px;margin-top:4px}
