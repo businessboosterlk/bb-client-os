@@ -17,27 +17,25 @@ async function staffFrom(req) {
     return null;
   }
 
-  const { data: user, error } = await (await supa()).auth.getUser(bearer);
-  if (error || !user?.user) return null;
-
-  const name = user.user_metadata.name || user.user_metadata.full_name || '';
-  const role = user.user_metadata.role || '';
-
-  // The person must be an active team member, case does not matter.
-  const { data: member } = await (await supa())
-    .from('team_members')
-    .select('name')
-    .eq('active', true)
-    .ilike('name', name)
-    .limit(1);
-  if (!member || member.length === 0) return null;
-
-  return { name, role };
+  const s = await supa();
+  const { data, error } = await s.auth.getUser(bearer);
+  const user = data && data.user;
+  if (error || !user) return null;
+  /* the name the system gave the person; five BB sign ins carry none, so the email before the @ (and before any dot) is tried:
+     hithesh@, tiana@, nirvana.smm@ (checked 25 Oct 2026). The ACTIVE roster decides either way. */
+  const meta = user.user_metadata || {};
+  const local = String(user.email || '').split('@')[0].split('.')[0];
+  const tries = [meta.name, meta.full_name, local].map(v => String(v || '').replace(/[^A-Za-z ]/g, '').trim()).filter(Boolean);
+  for (const name of tries) {
+    const { data: member } = await s.from('team_members').select('name,role').eq('active', true).ilike('name', name).limit(1);
+    if (member && member.length) return { name: member[0].name, role: meta.role || member[0].role || '' };
+  }
+  return null;
 }
 
 const ROLE_WORDS = { SMM: 'Social media manager', COO: 'Operations', CEO: 'Business Booster', Graphic: 'Design', Video: 'Video', Dev: 'Web' };
 export function roleWords(role) {
-  return ROLE_WORDS[role] || 'Business Booster';
+  return ROLE_WORDS[role] || (/social|smm/i.test(role || '') ? 'Social media manager' : 'Business Booster');
 }
 
 async function clientsWithApp() {
@@ -86,7 +84,8 @@ export async function staffToken(req) {
     return Response.json({ error: 'This client has no app yet.' }, { status: 404 });
   }
 
-  const first = who.name.split(' ')[0];
+  /* the roster keeps some names in capitals (THULAIB): the client sees Thulaib */
+  const w = who.name.split(' ')[0]; const first = w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
   const person = { id: null, name: first, role: roleWords(who.role), side: 'bb' };
   const live = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
     ? { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_ANON_KEY, topic: topicFor(hub.slug) }

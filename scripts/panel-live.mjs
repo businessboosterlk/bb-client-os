@@ -40,7 +40,12 @@ await cp.waitForFunction(() => /#\/chat/.test(location.hash), null, { timeout: 2
 const T = await context(browser, { desk: true, width: 1280, seed: null }); const tp = await T.newPage(); const terr = []; tp.on('pageerror', e => terr.push(String(e)));
 const treq = []; tp.on('request', r => { if (r.url().includes('/work')) treq.push(r.url()); });
 if (process.env.PANEL_DEBUG) { tp.on('response', async r => { if (r.url().includes('/api/')) console.log('  panel <- ' + r.status() + ' ' + r.request().method() + ' ' + r.url().replace(API, '').slice(0, 70)); }); tp.on('console', m => { if (m.type() === 'error') console.log('  panel console: ' + m.text().slice(0, 160)); }); }
-await tp.goto(host.base + 'test/host.html?api=' + encodeURIComponent(API)); await tp.locator('[data-act="host-their-app"]').click();
+await tp.goto(host.base + 'test/host.html?api=' + encodeURIComponent(API));
+{ const shown = await tp.evaluate(async () => { const a = document.createElement('div'), b = document.createElement('div'); document.body.append(a, b);
+    bbHubButton(a, { id: 'cc-1', name: 'Alpha Test Traders' }); bbHubButton(b, { id: 'cc-999', name: 'No App Ltd' }); await new Promise(r => setTimeout(r, 1500));
+    const r = [a.querySelectorAll('.bbh-open').length, b.querySelectorAll('.bbh-open').length]; a.remove(); b.remove(); return r; });
+  check('panel: the "Their app" button shows on a client with an app, and not on one without', shown[0] === 1 && shown[1] === 0, shown); }
+await tp.locator('[data-act="host-their-app"]').click();
 const opened = await tp.waitForSelector('#bbh-text', { timeout: 20000 }).then(() => true).catch(() => false);
 check('panel: "Their app" opens the client\'s chat inside the BB system', opened, await tp.evaluate(() => document.body.innerText.slice(0, 300)));
 await wait(2500);
@@ -72,7 +77,8 @@ await shot(tp, '03-panel-posts');
 /* a client request; the panel accepts it with a date; the client sees it */
 await cp.goto(app.base + '#/chat'); await cp.locator('bb-bubble').filter({ hasText: 'boost it too' }).first().locator('[data-act="msg-more"]').click(); await cp.locator('[data-act="msg-task"]').first().click();
 await tp.locator('[data-act="hub-tab-tasks"]').click();
-check('task: the client\'s request shows in the panel', await sees(tp, 'boost it too'));
+{ const ok = await sees(tp, 'boost it too'); if (!ok) { console.log('      panel holds tasks: ' + JSON.stringify(await tp.evaluate(() => bbHub.state.tasks.map(x => [x.title, x.for, x.asked])))); console.log('      client toast: ' + JSON.stringify(await cp.evaluate(() => document.querySelector('.toast')?.textContent || ''))); await shot(tp, 'FAIL-panel-tasks'); await shot(cp, 'FAIL-client-task'); }
+  check('task: the client\'s request shows in the panel', ok); }
 await tp.locator('[data-act="hub-task-accept"]').first().click(); await tp.locator('.bbh-root input[type="date"]').first().fill('2026-11-02'); await tp.locator('[data-act="hub-task-accept-save"]').first().click();
 check('task: the team accepts it from the panel and the client SEES "Accepted"', await sees(cp, 'Accepted'));
 await shot(tp, '04-panel-tasks');
