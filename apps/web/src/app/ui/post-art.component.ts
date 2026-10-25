@@ -1,4 +1,5 @@
-import { Component, input, computed } from '@angular/core';
+import { Component, input, computed, signal, effect } from '@angular/core';
+import { mediaUrl } from '../core/media';
 import type { PostVersion } from '../core/work-models';
 
 @Component({
@@ -6,6 +7,9 @@ import type { PostVersion } from '../core/work-models';
   standalone: true,
   imports: [],
   template: `
+    @if (real()) {
+      <img class="art real" [src]="real()" [alt]="ariaLabel()" loading="lazy" (error)="real.set('')">
+    } @else {
     <div
       class="art {{ version().tone }}"
       role="img"
@@ -22,6 +26,7 @@ import type { PostVersion } from '../core/work-models';
       </div>
       <div class="bottom">{{ business() }}</div>
     </div>
+    }
   `,
   styles: `
     /* hand fix, Claude: the kind chip was named "pill", which took the app's own pill padding and became a blob; and at
@@ -36,6 +41,8 @@ import type { PostVersion } from '../core/work-models';
       width: 100%;
     }
 
+    /* Stage 2: a real post carries its designed artwork; the drawn card stays for the demo and while the picture loads */
+    .art.real { display: block; width: 100%; object-fit: cover; padding: 0; background: var(--surface-2); }
     .art {
       aspect-ratio: 4 / 5;
       border-radius: var(--r);
@@ -104,6 +111,13 @@ import type { PostVersion } from '../core/work-models';
   `,
 })
 export class PostArtComponent {
+  /* the client's slug, so a real post's artwork can be read from the store */
+  readonly slug = input<string>('');
+  readonly real = signal('');
+  constructor() {
+    effect(() => { const a = this.version().art, s = this.slug(); this.real.set(''); if (a && s) mediaUrl(s, a).then(u => this.real.set(u)); });
+  }
+
   version = input.required<PostVersion>();
   kind = input<string>('Post');
   business = input<string>('');

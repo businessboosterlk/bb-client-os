@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, HostListener, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, signal, computed, HostListener, OnInit, OnDestroy, effect } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive, ActivatedRoute, Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs';
 import { CastService } from '../core/cast.service';
@@ -153,6 +153,8 @@ interface NavGroup { key: Group; label: string; items: NavItem[]; }
     }`]
 })
 export class ShellComponent implements OnInit, OnDestroy {
+  /* a refusal from the workspace server is said on screen in its own words, never swallowed (Stage 2) */
+  private saysErrors = effect(() => { const e = this.work.error(); if (e) this.data.toast(e); });
   cast = inject(CastService); session = inject(SessionService); data = inject(DataService); theme = inject(ThemeService);
   update = inject(UpdateService); private ask = inject(AskService); private seen = inject(SeenService); work = inject(WorkService);
   scrolled = signal(false);
@@ -247,7 +249,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     const n = this.data.pending();
     if (n > 0 && !(await this.ask.confirm({ title: 'Sign out now?', body: `${n} ${n === 1 ? 'change has' : 'changes have'} not reached the server yet. Signing out removes ${n === 1 ? 'it' : 'them'} from this device.`, yes: 'Sign out anyway', no: 'Stay signed in', danger: true }))) return;
     this.setRail(false);
-    await this.data.signOut(); this.router.navigate(['/login']);
+    this.work.close(); await this.data.signOut(); this.router.navigate(['/login']);
   }
   @HostListener('document:keydown.escape') esc(){ this.setRail(false); }
 }

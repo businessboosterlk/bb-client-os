@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 
 const LIST = (process.env.HUB_ORIGINS || 'http://localhost:8761,https://businessboosterlk.github.io')
   .split(',').map(s => s.trim().replace(/\/+$/, '')).filter(Boolean);
-const METHODS = 'GET,POST,PATCH,DELETE,OPTIONS', HEADERS = 'Content-Type, Authorization, X-BB-Admin';
+const METHODS = 'GET,POST,PUT,PATCH,DELETE,OPTIONS', HEADERS = 'Content-Type, Authorization, X-BB-Admin';
 
 export function middleware(req){
   const origin = req.headers.get('origin') || '';

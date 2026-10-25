@@ -1,6 +1,6 @@
-/* BB's own door for onboarding. X-BB-Admin header. Creates or updates a client with its
-   config and mints two seat codes. The codes are returned ONCE, in this response, and
-   only their hashes are kept. Lose a code, mint a new pair. */
+/* BB's own door for onboarding. X-BB-Admin header. Creates or updates a client with its config.
+   SINCE STAGE 2 (24 Oct 2026) IT MINTS NO CODES: the door reads people from os_people, one named person per code, added
+   through /api/bb/people. The old two seat codes would never have opened the door, so none are minted. */
 import { isAdmin, deny } from '../../../../lib/auth.js';
 import { mode, supa } from '../../../../lib/store.js';
 import { hashCode, newCode, norm } from '../../../../lib/clients.js';
@@ -14,14 +14,7 @@ export async function POST(req){
   const { data: existing } = await s.from('os_clients').select('seats,config').eq('slug', slug).maybeSingle();
   /* re-running onboarding to update a client's settings must NEVER lock their team out:
      codes are kept unless rotate is asked for, or the client is new */
-  const rotate = !existing || b.rotate === true;
-  let codes = [], seats = existing?.seats || [];
-  if (rotate) {
-    const labels = (b.seats && b.seats.length ? b.seats : ['Owner', 'Team']).slice(0, 2);
-    const prefix = (b.cast.short || b.name).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'HUB';
-    codes = labels.map(label => ({ label, code: newCode(prefix) }));
-    seats = codes.map(c => ({ label: c.label, ...hashCode(c.code), issued_at: new Date().toISOString(), revoked: false }));
-  }
+  const seats = existing?.seats || [];
   /* a WhatsApp group invite is a key: it lives only here, never in the public repo */
   const bb = { ...(b.cast.bb || {}) };
   if (b.group) {
@@ -31,7 +24,7 @@ export async function POST(req){
   const aliases = [...new Set([slug, ...(b.aliases || []).map(norm)].filter(Boolean))];
   const { error } = await s.from('os_clients').upsert({ slug, name: b.name, aliases, config: { ...b.cast, slug, name: b.name, bb }, seats, active: true, updated_at: new Date().toISOString() });
   if (error) return Response.json({ error: error.message }, { status: 500 });
-  return Response.json({ slug, aliases, rotated: rotate, seats: codes, group: !!bb.group });
+  return Response.json({ slug, aliases, people: 'add them with POST /api/bb/people', group: !!bb.group });
 }
 export async function GET(req){
   if (!isAdmin(req)) return deny('BB admin only', 403);

@@ -59,7 +59,7 @@ import { WorkSoonComponent } from '../../ui/work-soon.component';
               </div>
               <div class="col-b" cdkDropList [cdkDropListData]="col.key" (cdkDropListDropped)="drop($event)">
                 @for (t of col.tasks.slice(0, colShown()[col.key] || 15); track t.id) {
-                  <button type="button" class="dc" data-act="wtask-open" cdkDrag [cdkDragData]="t" [cdkDragDisabled]="!canMove(t, 'client')" [cdkDragStartDelay]="touch ? 220 : 0" (click)="open(t)">
+                  <button type="button" class="dc" data-act="wtask-open" cdkDrag [cdkDragData]="t" [cdkDragDisabled]="!mayMove(t)" [cdkDragStartDelay]="touch ? 220 : 0" (click)="open(t)">
                     <strong>{{ t.title }}</strong>
                     <span class="dc-sub">{{ meta(t) }}</span>
                     <span class="dc-meta">
@@ -97,7 +97,19 @@ import { WorkSoonComponent } from '../../ui/work-soon.component';
       <bb-drawer [open]="!!sel()" [title]="sel()?.title || ''" [editable]="!!sel() && work.canEdit(sel()!) && !editing()" [message]="editing() ? emsg() : ''" (edit)="beginEdit()" (closed)="closeSheet()">
         <ng-template #body>
         @if (sel(); as t) {
-          @if (editing()) {
+          @if (team()) {
+            <div class="form-grid">
+              @if (team() === 'accept') {
+                <div class="field"><label for="wt-t-who">Who has it</label><input id="wt-t-who" type="text" [(ngModel)]="tf.who" autocomplete="off" [placeholder]="work.me().name"></div>
+                <div class="field"><label for="wt-t-due">By when</label><input id="wt-t-due" type="date" [class.empty]="!tf.due" [(ngModel)]="tf.due"></div>
+              } @else if (team() === 'outside') {
+                <div class="field span"><label for="wt-t-out">Why it is outside the package</label><input id="wt-t-out" type="text" [(ngModel)]="tf.text" autocomplete="off" maxlength="300"></div>
+              } @else {
+                <div class="field span"><label for="wt-t-why">Why it is late</label><input id="wt-t-why" type="text" [(ngModel)]="tf.text" autocomplete="off" maxlength="300"></div>
+                <div class="field"><label for="wt-t-new">New date</label><input id="wt-t-new" type="date" [class.empty]="!tf.due" [(ngModel)]="tf.due"></div>
+              }
+            </div>
+          } @else if (editing()) {
             <div class="form-grid">
               <div class="field span"><label for="wt-e-title">What needs doing</label><input id="wt-e-title" type="text" [(ngModel)]="ed.title" autocomplete="off" enterkeyhint="next" [attr.aria-invalid]="!!emsg()"></div>
               <div class="field"><label for="wt-e-due">By when</label><input id="wt-e-due" type="date" [class.empty]="!ed.due" [(ngModel)]="ed.due"></div>
@@ -137,7 +149,26 @@ import { WorkSoonComponent } from '../../ui/work-soon.component';
         }
         </ng-template>
         <ng-template #foot>@if (sel(); as t) {
-          @if (editing()) {
+          @if (team()) {
+            <button class="btn" type="button" data-act="wtask-team-save" (click)="teamSave(t)">{{ team() === 'accept' ? 'Accept' : team() === 'outside' ? 'Tell the client' : 'Give the new date' }}</button>
+            <button class="btn quiet" type="button" data-act="wtask-team-cancel" (click)="team.set('')">Cancel</button>
+          } @else if (work.isTeam() && t.for === 'bb' && requestState(t) === 'asked') {
+            <button class="btn" type="button" data-act="wtask-accept" (click)="teamOpen('accept', t)">Accept</button>
+            <div class="pair"><button class="btn ghost" type="button" data-act="wtask-outside" (click)="teamOpen('outside', t)">Outside the package</button><button class="btn ghost" type="button" data-act="wtask-close" (click)="closeSheet()">Close</button></div>
+          } @else if (work.isTeam() && t.for === 'bb' && requestState(t) === 'accepted') {
+            @if (t.stage === 'todo') {
+              <button class="btn" type="button" data-act="wtask-start" (click)="moveTo(t, 'doing', 'Started')">Start</button>
+            } @else if (t.stage === 'doing') {
+              <button class="btn" type="button" data-act="wtask-done" (click)="moveTo(t, 'done', 'Done')">Mark done</button>
+            } @else {
+              <button class="btn" type="button" data-act="wtask-undo" (click)="moveTo(t, 'todo', 'Back to To do')">Back to To do</button>
+            }
+            @if (t.stage !== 'done') {
+              <div class="pair"><button class="btn ghost" type="button" data-act="wtask-late" (click)="teamOpen('late', t)">New date</button><button class="btn ghost" type="button" data-act="wtask-close" (click)="closeSheet()">Close</button></div>
+            }
+          } @else if (work.isTeam() && t.for === 'client') {
+            <button class="btn quiet" type="button" data-act="wtask-close" (click)="closeSheet()">Close</button>
+          } @else if (editing()) {
             <button class="btn" type="button" data-act="wtask-save" (click)="saveEdit(t)">Save changes</button>
             <button class="btn quiet" type="button" data-act="wtask-edit-cancel" (click)="cancelEdit()">Cancel</button>
           } @else if (t.for === 'client') {
@@ -177,8 +208,8 @@ import { WorkSoonComponent } from '../../ui/work-soon.component';
               <div class="field"><label for="wt-who">Who</label><select id="wt-who" [(ngModel)]="draft.who"><option value="">Anyone</option>@for (u of seats(); track u) { <option [value]="u">{{ u }}</option> }</select></div>
             }
           </div>
-          @if (draft.for === 'bb') {
-            <p class="t-small">The team will accept it with a person and a date, or tell you if it is outside your package.</p>
+          @if (draft.for === 'bb' && !work.isTeam()) {
+            <p class="t-small">The team will accept it with a person and a date. If it is outside your package they will say so.</p>
           }
           <label class="btn ghost sm" data-act="wtask-add-photo"><bb-icon name="camera"/><span>{{ draft.files.length ? draft.files.length + (draft.files.length === 1 ? ' photo added' : ' photos added') : 'Add photos' }}</span><input type="file" accept="image/*" multiple class="sr-only" aria-label="Add photos" (change)="onFiles($event)"></label>
         </ng-template>
@@ -262,28 +293,43 @@ export class WorkTasksComponent implements OnInit, OnDestroy {
     return parts.join(' · ') || 'No date';
   }
   async drop(ev: CdkDragDrop<TaskStage>){ const t: WorkTask = ev.item.data; const to = ev.container.data; if (t.stage === to) return;
-    if (!canMove(t, 'client')) { this.data.toast('The team moves its own tasks. Ask in the chat if something should change.'); return; }
-    const r = this.work.moveTask(t.id, to); if (r) this.data.toast('Moved to ' + this.stageLabel(to)); }
+    if (!canMove(t, this.work.me().side) || (this.work.isTeam() ? t.for !== 'bb' : t.for !== 'client')) { this.data.toast(this.work.isTeam() ? 'The client moves its own tasks.' : 'The team moves its own tasks. Ask in the chat if something should change.'); return; }
+    const r = await this.work.moveTask(t.id, to); if (r) this.data.toast('Moved to ' + this.stageLabel(to)); }
   open(t: WorkTask){ if (t.for !== this.side()) this.setSide(t.for); this.sel.set(t); this.editing.set(false); this.emsg.set(''); this.say.set(''); }
-  closeSheet(){ this.sel.set(null); this.editing.set(false); }
+  closeSheet(){ this.sel.set(null); this.editing.set(false); this.team.set(''); }
+  /* who may drag a card: the client its tasks For you, the team its accepted tasks For us (the server holds the same rule) */
+  mayMove(t: WorkTask){ return canMove(t, this.work.me().side) && t.for === this.work.me().side; }
+  /* the team's answers to a task: accept it, say it is outside the package, or give a reason and a new date */
+  team = signal<'' | 'accept' | 'outside' | 'late'>('');
+  tf = { who: '', due: '', text: '' };
+  teamOpen(mode: 'accept' | 'outside' | 'late', t: WorkTask){ this.tf = { who: t.who || '', due: mode === 'late' ? '' : t.due || '', text: '' }; this.emsg.set(''); this.team.set(mode); }
+  async teamSave(t: WorkTask){
+    const m = this.team(); const text = this.tf.text.trim();
+    if (m === 'accept' && !this.tf.due) { this.data.toast('Give it a date, so the client knows when.'); return; }
+    if (m !== 'accept' && !text) { this.data.toast(m === 'outside' ? 'Say why in one line.' : 'Say why it is late in one line.'); return; }
+    if (m === 'late' && !this.tf.due) { this.data.toast('Give the new date.'); return; }
+    const r = await this.work.teamTask(t.id, m === 'accept' ? { accept: { ...(this.tf.who.trim() ? { who: this.tf.who.trim() } : {}), due: this.tf.due } } : m === 'outside' ? { outside: text } : { late: { reason: text, newDue: this.tf.due } });
+    if (!r) { this.data.toast(this.work.error() || 'That did not save. Try again.'); return; }
+    this.sel.set(r); this.team.set(''); this.data.toast(m === 'accept' ? 'Accepted' : m === 'outside' ? 'Told the client' : 'New date given');
+  }
   beginEdit(){ const t = this.sel(); if (!t) return; this.ed = { title: t.title, due: t.due || '', who: t.who || '' }; this.emsg.set(''); this.editing.set(true); }
   cancelEdit(){ this.editing.set(false); this.emsg.set(''); }
-  saveEdit(t: WorkTask){
+  async saveEdit(t: WorkTask){
     const title = this.ed.title.trim(); if (!title) { this.emsg.set('A task needs its words. Put them back to save.'); return; }
-    const r = this.work.updateTask(t.id, { title, due: this.ed.due || undefined, who: this.ed.who || undefined }); if (r) this.sel.set(r);
+    const r = await this.work.updateTask(t.id, { title, due: this.ed.due || undefined, who: this.ed.who || undefined }); if (!r) return; this.sel.set(r);
     this.editing.set(false); this.data.toast('Saved');
   }
-  async moveTo(t: WorkTask, to: TaskStage, toast: string){ const r = this.work.moveTask(t.id, to); if (r) { this.sel.set(r); this.data.toast(toast); this.closeSheet(); } }
-  async tick(t: WorkTask){ const to = t.stage === 'done' ? 'todo' : 'done'; const r = this.work.moveTask(t.id, to); if (r) this.data.toast(to === 'done' ? 'Done' : 'Back to To do'); }
+  async moveTo(t: WorkTask, to: TaskStage, toast: string){ const r = await this.work.moveTask(t.id, to); if (r) { this.sel.set(r); this.data.toast(toast); this.closeSheet(); } }
+  async tick(t: WorkTask){ const to = t.stage === 'done' ? 'todo' : 'done'; const r = await this.work.moveTask(t.id, to); if (r) this.data.toast(to === 'done' ? 'Done' : 'Back to To do'); }
   async remove(t: WorkTask){
     if (!(await this.ask.confirm({ title: 'Remove this task?', body: t.title, yes: 'Remove', danger: true }))) return;
-    this.work.removeTask(t.id); this.closeSheet(); this.data.toast('Task removed');
+    if (!(await this.work.removeTask(t.id))) return; this.closeSheet(); this.data.toast('Task removed');
   }
   async withdraw(t: WorkTask){
     if (!(await this.ask.confirm({ title: 'Withdraw this request?', body: t.title, yes: 'Withdraw', danger: true }))) return;
-    this.work.removeTask(t.id); this.closeSheet(); this.data.toast('Request withdrawn');
+    if (!(await this.work.removeTask(t.id))) return; this.closeSheet(); this.data.toast('Request withdrawn');
   }
-  comment(t: WorkTask){ const text = this.say().trim(); if (!text) return; this.work.comment({ kind: 'task', id: t.id }, text); this.say.set(''); this.data.toast('Sent to the chat'); }
+  async comment(t: WorkTask){ const text = this.say().trim(); if (!text) return; if (!(await this.work.comment({ kind: 'task', id: t.id }, text))) return; this.say.set(''); this.data.toast('Sent to the chat'); }
   openSource(t: WorkTask){ if (!t.source) return; this.router.navigate(['/chat'], { queryParams: { msg: t.source } }); }
   /* hand fix, Claude: the part kept the file NAMES, so no photo ever reached the task */
   onFiles(ev: Event){ const el = ev.target as HTMLInputElement; if (el.files) this.draft.files = [...this.draft.files, ...Array.from(el.files)].slice(0, 10); el.value = ''; }

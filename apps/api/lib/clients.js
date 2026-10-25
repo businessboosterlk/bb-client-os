@@ -1,6 +1,6 @@
 /* Who can come through the door. A client has a slug, the names they may type at the
    door (waverley.lk, waverley), a config (brand, words, stages, library metadata, never a
-   lead) and two seats. A seat is a code, stored only as a salted scrypt hash. */
+   lead) and its PEOPLE (os_people): one named person per code, stored only as a salted scrypt hash. */
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { scryptSync, randomBytes, timingSafeEqual } from 'node:crypto';
@@ -49,7 +49,22 @@ export async function loadCast(slug){
   const { data } = await (await supa()).from('os_clients').select('config').eq('slug', slug).eq('active', true).maybeSingle();
   return data?.config || null;
 }
-export function verifySeat(client, code){
-  if (mode !== 'supabase') return String(code) === (process.env.HUB_DEMO_CODE || '1111') ? (client.seats[0] || { label: 'Owner' }) : null;
-  return (client.seats || []).find(s => checkCode(code, s)) || null;
+/* WHO IS AT THE DOOR: one named PERSON per code (Stage 2, bb_pending 693). Database mode reads os_people for that client,
+   never a revoked person, and answers with the person: id, name, role and side (the client's team or Business Booster).
+   Memory mode (the demo and every test): HUB_DEMO_CODE opens as the cast's first user on the client's side, and
+   HUB_DEMO_BB_CODE, when set, opens as a team member on Business Booster's side, so both sides can be tested. */
+export async function verifySeat(client, code){
+  if (mode !== 'supabase') {
+    const owner = (client.config?.users || [])[0] || { name: 'Owner', role: 'Owner' };
+    if (String(code) === (process.env.HUB_DEMO_CODE || '1111')) return { id: null, name: owner.name, role: owner.role || 'Owner', side: 'client', label: owner.name };
+    if (process.env.HUB_DEMO_BB_CODE && String(code) === process.env.HUB_DEMO_BB_CODE) return { id: null, name: 'Tiana', role: 'Social media manager', side: 'bb', label: 'Tiana' };
+    return null;
+  }
+  const s = await supa();
+  const { data, error } = await s.from('os_people').select('id,name,role,side,code_salt,code_hash').eq('client', client.slug).is('revoked_at', null).limit(200);
+  if (error) throw error;
+  const p = (data || []).find(r => checkCode(code, { salt: r.code_salt, hash: r.code_hash }));
+  if (!p) return null;
+  await s.from('os_people').update({ last_in_at: new Date().toISOString() }).eq('client', client.slug).eq('id', p.id);
+  return { id: p.id, name: p.name, role: p.role, side: p.side, label: p.name };
 }

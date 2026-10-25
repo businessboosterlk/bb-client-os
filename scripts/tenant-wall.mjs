@@ -43,7 +43,7 @@ const ta = A.json.token, tb = Bt.json.token;
 
 /* A writes. B tries everything. */
 const row = await call('POST', '/api/alpha/enquiries', { token: ta, body: { name: 'Alpha Secret Customer', phone: '0770000001', wants: 'Only Alpha may read this', by: 'Forged Name', id: 'chosen-id', client: 'beta' } });
-check('A writes a row: the server names the seat itself and chooses the id itself', row.status === 201 && row.json.by === 'Owner' && row.json.id !== 'chosen-id', { by: row.json?.by, id: row.json?.id });
+check('A writes a row: the server names the PERSON itself and chooses the id itself', row.status === 201 && row.json.by === demo.users[0].name && row.json.id !== 'chosen-id', { by: row.json?.by, id: row.json?.id });
 const id = row.json.id; const probes = [];
 const probe = async (name, want, method, url, opt) => { const r = await call(method, url, opt); const leaked = /Alpha Secret|Only Alpha/.test(r.text); const ok = want.includes(r.status) && !leaked; probes.push({ name, status: r.status, ok }); check(name, ok, r.status + (leaked ? ' AND ALPHA\'S ROW WAS IN THE ANSWER' : '') + ' ' + r.text.slice(0, 60)); return r; };
 await probe('no token: Alpha\'s list', [401], 'GET', '/api/alpha/enquiries');
@@ -87,7 +87,7 @@ await probe('a token that ran out, signed properly', [401], 'GET', '/api/alpha/e
 /* Alpha is untouched */
 const still = await call('GET', '/api/alpha/enquiries/' + id, { token: ta });
 const list = await call('GET', '/api/alpha/enquiries?limit=50&offset=0', { token: ta });
-check('after every probe Alpha\'s row is still there and still Alpha\'s, by its id and in its list', still.status === 200 && still.json?.name === 'Alpha Secret Customer' && still.json?.by === 'Owner' && list.json?.some(x => x.id === id), { byId: still.status, inList: list.json?.length });
+check('after every probe Alpha\'s row is still there and still Alpha\'s, by its id and in its list', still.status === 200 && still.json?.name === 'Alpha Secret Customer' && still.json?.by === demo.users[0].name && list.json?.some(x => x.id === id), { byId: still.status, inList: list.json?.length });
 const own = await call('PATCH', '/api/alpha/enquiries/' + id, { token: ta, body: { wants: 'Changed by Alpha' } });
 check('Alpha can change its own row, so the refusals above were the wall and not a broken address', own.status === 200 && own.json?.wants === 'Changed by Alpha', own.status);
 /* paging on the real code */

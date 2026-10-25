@@ -1,11 +1,16 @@
 import { Injectable, signal, inject } from '@angular/core';
 import { CastService } from './cast.service';
 import { Cast } from './models';
+import type { Side } from './work-models';
+import type { LiveConfig } from './live-socket';
+
+/* who signed in (a named person, on the client's side or Business Booster's) and the live channel, both from the server */
+export interface SignedIn { name: string; role: string; side: Side; }
 
 /* Who is at the keyboard. In the Hub a session is a signed token from the API for one
    client and one seat, kept for ten days. The static demo checks the cast PIN in the
    browser and says so on screen. */
-interface Saved { token: string; slug: string; seat: string; cast: Cast; }
+interface Saved { token: string; slug: string; seat: string; cast: Cast; me?: SignedIn | null; live?: LiveConfig | null; }
 const KEY = 'hub_session';
 @Injectable({ providedIn: 'root' })
 export class SessionService {
@@ -13,13 +18,15 @@ export class SessionService {
   readonly user = signal<string>('');
   readonly token = signal<string>('');
   readonly error = signal<string>('');
+  readonly me = signal<SignedIn | null>(null);
+  readonly live = signal<LiveConfig | null>(null);
 
   restore(): boolean {
     try {
       const raw = localStorage.getItem(KEY); if (!raw) return false;
       const s = JSON.parse(raw) as Saved;
       if (!s.cast || !s.slug) return false;
-      this.castSvc.use(s.cast); this.user.set(s.seat); this.token.set(s.token || '');
+      this.castSvc.use(s.cast); this.user.set(s.seat); this.token.set(s.token || ''); this.me.set(s.me || null); this.live.set(s.live || null);
       return true;
     } catch { return false; }
   }
@@ -31,7 +38,7 @@ export class SessionService {
         const r = await fetch(`${api}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ business, code }) });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) { this.error.set(j.error || 'That business name and code do not match.'); return false; }
-        this.save({ token: j.token, slug: j.slug, seat: j.seat, cast: j.cast }); return true;
+        this.save({ token: j.token, slug: j.slug, seat: j.seat, cast: j.cast, me: j.me || null, live: j.live || null }); return true;
       } catch { this.error.set('Could not reach the Hub. Check the signal and try again.'); return false; }
     }
     /* static demo: the alias index turns what was typed into a cast file, the code is the cast PIN */
@@ -56,11 +63,11 @@ export class SessionService {
     try {
       const r = await fetch(`${api}/api/${c.slug}/cast`, { headers: { Authorization: 'Bearer ' + this.token() } });
       if (r.status === 401) return 'lost';
-      if (r.ok) this.save({ token: this.token(), slug: c.slug, seat: this.user(), cast: await r.json() });
+      if (r.ok) this.save({ token: this.token(), slug: c.slug, seat: this.user(), cast: await r.json(), me: this.me(), live: this.live() });
       return 'ok';
     } catch { return 'offline'; /* keep the saved copy */ }
   }
-  private save(s: Saved){ this.castSvc.use(s.cast); this.user.set(s.seat); this.token.set(s.token); try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} }
-  logout() { this.user.set(''); this.token.set(''); this.castSvc.clear(); try { localStorage.removeItem(KEY); } catch {} }
+  private save(s: Saved){ this.castSvc.use(s.cast); this.user.set(s.seat); this.token.set(s.token); this.me.set(s.me || null); this.live.set(s.live || null); try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} }
+  logout() { this.user.set(''); this.token.set(''); this.me.set(null); this.live.set(null); this.castSvc.clear(); try { localStorage.removeItem(KEY); } catch {} }
   initial() { return (this.user() || '?').slice(0, 1).toUpperCase(); }
 }

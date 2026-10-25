@@ -404,6 +404,11 @@ async function world(desk) {
 await browser.close(); srv.close();
 
 /* ── 3. NAME what was never pressed ── */
+/* the team's buttons are pressed by a team member in the two person run (scripts/work-live.mjs), which needs a second person
+   and the live channel. Its presses count here only when that run PASSED in the last two hours. */
+try { const two = JSON.parse(fs.readFileSync(path.join(ROOT, 'evidence/stage2-live/pressed.json'), 'utf8'));
+  if (two.passed && Date.now() - Date.parse(two.at) < 2 * 3600e3) { two.acts.forEach(a => pressed.add(a)); console.log('two person run: ' + two.acts.length + ' presses counted, run at ' + two.at); }
+  else console.log('two person run: not counted (' + (two.passed ? 'older than two hours' : 'it failed') + ')'); } catch { console.log('two person run: none on file'); }
 const never = [...ALL].filter(a => !pressed.has(a)).sort();
 const stray = [...pressed].filter(a => !ALL.has(a)).sort();
 console.log('\nCLICK PATH: ' + ALL.size + ' actions counted in the source, ' + (ALL.size - never.length) + ' pressed by a real tap or click. Not pressed: ' + (never.join(', ') || 'none'));

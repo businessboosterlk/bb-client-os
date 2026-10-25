@@ -33,6 +33,9 @@ import { WorkSoonComponent } from '../../ui/work-soon.component';
             <button type="button" data-act="wpost-view-board" [class.on]="view() === 'board'" [attr.aria-pressed]="view() === 'board'" (click)="setView('board')"><bb-icon name="board"/><span>Board</span></button>
             <button type="button" data-act="wpost-view-list" [class.on]="view() === 'list'" [attr.aria-pressed]="view() === 'list'" (click)="setView('list')"><bb-icon name="list"/><span>List</span></button>
           </div>
+          @if (work.isTeam()) {
+            <button class="btn" type="button" data-act="wpost-new" (click)="formOpen(null)"><bb-icon name="plus"/><span>New post</span></button>
+          }
         </div>
       </div>
 
@@ -50,11 +53,11 @@ import { WorkSoonComponent } from '../../ui/work-soon.component';
               <div class="col-b">
                 @for (p of col.posts.slice(0, colShown()[col.key] || 15); track p.id) {
                   <button type="button" class="pc" data-act="wpost-open" (click)="open(p)">
-                    <bb-post-art [version]="latest(p)" [kind]="p.kind" [business]="biz()"/>
+                    <bb-post-art [version]="latest(p)" [kind]="p.kind" [business]="biz()" [slug]="work.slug()"/>
                     <strong>{{ latest(p).head }}</strong>
                     <span class="pc-meta">{{ p.platform }} · {{ niceDate(p.slot) }} at {{ clockWord(p.slot) }}</span>
                     <span class="pc-pills">
-                      @if (p.status === 'waiting' && !work.changeAsked(p)) { <span class="pill quoted">Waiting for you</span> }
+                      @if (p.status === 'waiting' && !work.changeAsked(p)) { <span class="pill quoted">{{ work.isTeam() ? 'Waiting for the client' : 'Waiting for you' }}</span> }
                       @if (work.changeAsked(p)) { <span class="pill new">With the team</span> }
                       @if (latest(p).v > 1) { <span class="pill">Version {{ latest(p).v }}</span> }
                     </span>
@@ -72,7 +75,7 @@ import { WorkSoonComponent } from '../../ui/work-soon.component';
           <div class="list">
             @for (p of rows().slice(0, shown()); track p.id) {
               <div class="li">
-                <div class="art-wrap"><bb-post-art [version]="latest(p)" [kind]="p.kind" [business]="biz()"/></div>
+                <div class="art-wrap"><bb-post-art [version]="latest(p)" [kind]="p.kind" [business]="biz()" [slug]="work.slug()"/></div>
                 <button type="button" class="tx" data-act="wpost-open" (click)="open(p)">
                   <strong>{{ latest(p).head }}</strong>
                   <span>{{ p.platform }} · {{ p.kind }} · {{ niceDate(p.slot) }}</span>
@@ -91,7 +94,7 @@ import { WorkSoonComponent } from '../../ui/work-soon.component';
         <ng-template #body>
         @if (sel(); as p) {
           @if (deckNote()) { <p class="t-small">{{ deckNote() }}</p> }
-          <div class="big"><bb-post-art [version]="latest(p)" [kind]="p.kind" [business]="biz()"/></div>
+          <div class="big"><bb-post-art [version]="latest(p)" [kind]="p.kind" [business]="biz()" [slug]="work.slug()"/></div>
           <div class="sheet-pills">
             <span class="pill" [class]="statusPill(p.status)">{{ statusLabel(p.status) }}</span>
             <span class="pill">Version {{ latest(p).v }}</span>
@@ -153,7 +156,14 @@ import { WorkSoonComponent } from '../../ui/work-soon.component';
         </ng-template>
         <ng-template #foot>
           @if (sel(); as p) {
-            @if (p.status === 'waiting' && !work.changeAsked(p) && !asking()) {
+            @if (work.isTeam()) {
+              @if (p.status === 'live') {
+                <button class="btn quiet" type="button" data-act="wpost-close" (click)="closeSheet()">Close</button>
+              } @else {
+                <button class="btn" type="button" data-act="wpost-version" (click)="formOpen(p)">New version</button>
+                <div class="pair"><button class="btn ghost" type="button" data-act="wpost-live" (click)="markLive(p)">Mark live</button><button class="btn ghost" type="button" data-act="wpost-close" (click)="closeSheet()">Close</button></div>
+              }
+            } @else if (p.status === 'waiting' && !work.changeAsked(p) && !asking()) {
               <button class="btn" type="button" data-act="wpost-approve" (click)="approve()"><bb-icon name="approve"/><span>Approve</span></button>
               <button class="btn ghost" type="button" data-act="wpost-change" (click)="asking.set(true)">Ask for a change</button>
             } @else if (asking()) {
@@ -165,6 +175,27 @@ import { WorkSoonComponent } from '../../ui/work-soon.component';
               <button class="btn quiet" type="button" data-act="wpost-close" (click)="closeSheet()">Close</button>
             }
           }
+        </ng-template>
+      </bb-drawer>
+
+      <bb-drawer [open]="form()" [title]="pf.id ? 'New version' : 'New post'" [message]="formMsg()" (closed)="form.set(false)">
+        <ng-template #body>
+          <div class="form-grid">
+            @if (!pf.id) {
+              <div class="field"><label for="wp-f-plat">Platform</label><select id="wp-f-plat" [(ngModel)]="pf.platform"><option>Instagram</option><option>Facebook</option><option>TikTok</option></select></div>
+              <div class="field"><label for="wp-f-kind">Kind</label><select id="wp-f-kind" [(ngModel)]="pf.kind"><option>Post</option><option>Carousel</option><option>Reel</option></select></div>
+              <div class="field"><label for="wp-f-slot">Goes out</label><input id="wp-f-slot" type="datetime-local" [(ngModel)]="pf.slot"></div>
+              <div class="field"><label for="wp-f-by">A yes is needed by</label><input id="wp-f-by" type="datetime-local" [(ngModel)]="pf.decideBy"></div>
+            }
+            <div class="field span"><label for="wp-f-head">Headline</label><input id="wp-f-head" type="text" maxlength="120" [(ngModel)]="pf.head" autocomplete="off"></div>
+            <div class="field span"><label for="wp-f-cap">Caption</label><textarea id="wp-f-cap" rows="5" maxlength="2200" [(ngModel)]="pf.caption"></textarea></div>
+            <div class="field span"><label for="wp-f-art">Artwork</label><input id="wp-f-art" type="file" accept="image/jpeg,image/png,image/webp" (change)="pickArt($event)"></div>
+            @if (artPreview()) { <div class="field span"><img class="art-prev" [src]="artPreview()" alt="The artwork chosen"></div> }
+          </div>
+        </ng-template>
+        <ng-template #foot>
+          <button class="btn" type="button" data-act="wpost-form-save" [disabled]="busy()" (click)="formSave()">{{ pf.id ? 'Send the new version' : 'Send for a yes' }}</button>
+          <button class="btn quiet" type="button" data-act="wpost-form-cancel" (click)="form.set(false)">Cancel</button>
         </ng-template>
       </bb-drawer>
     }
@@ -201,6 +232,7 @@ import { WorkSoonComponent } from '../../ui/work-soon.component';
     @media (pointer:coarse){.say-row input{font-size:16px}}
     .say-row input:focus{outline:none;border-color:var(--brand)}
     .say-row .btn{min-height:44px}
+    .art-prev{display:block;width:100%;max-width:240px;aspect-ratio:4/5;object-fit:cover;border-radius:var(--r)}
   `]
 })
 export class WorkPostsComponent implements OnInit, OnDestroy {
@@ -216,6 +248,28 @@ export class WorkPostsComponent implements OnInit, OnDestroy {
   busy = signal(false); deckNote = signal(''); msg = signal(''); sayText = signal('');
   private recTimer: ReturnType<typeof setInterval> | null = null; private recorder: VoiceRecorder | null = null;
   private qs?: { unsubscribe(): void };
+  /* THE TEAM'S SIDE (Stage 2): put up a post or a new version with its artwork, then mark it live. The client alone approves. */
+  form = signal(false); formMsg = signal(''); artPreview = signal('');
+  pf = { id: '', platform: 'Instagram' as 'Instagram' | 'Facebook' | 'TikTok', kind: 'Post' as 'Post' | 'Carousel' | 'Reel', slot: '', decideBy: '', head: '', caption: '', art: null as File | null };
+  formOpen(p: WorkPost | null){
+    const v = p ? latest(p) : null;
+    this.pf = { id: p?.id || '', platform: p?.platform || 'Instagram', kind: p?.kind || 'Post', slot: '', decideBy: '', head: v?.head || '', caption: v?.caption || '', art: null };
+    this.artPreview.set(''); this.formMsg.set(''); this.form.set(true);
+  }
+  pickArt(e: Event){ const f = (e.target as HTMLInputElement).files?.[0] || null; this.pf.art = f; if (this.artPreview()) URL.revokeObjectURL(this.artPreview()); this.artPreview.set(f ? URL.createObjectURL(f) : ''); }
+  async formSave(){
+    const pf = this.pf;
+    if (!pf.head.trim() || !pf.caption.trim()) { this.formMsg.set('A headline and a caption, please.'); return; }
+    if (!pf.id && !pf.slot) { this.formMsg.set('Say when it goes out.'); return; }
+    this.busy.set(true);
+    try {
+      const r = await this.work.teamPost({ ...(pf.id ? { id: pf.id } : {}), platform: pf.platform, kind: pf.kind, slot: pf.slot ? new Date(pf.slot).toISOString() : '',
+        ...(pf.decideBy ? { decideBy: new Date(pf.decideBy).toISOString() } : {}), caption: pf.caption.trim(), head: pf.head.trim(), tone: 'brand', art: pf.art });
+      if (!r) { this.formMsg.set(this.work.error() || 'That did not send. Try again.'); return; }
+      this.form.set(false); this.sel.set(null); this.data.toast(pf.id ? 'New version sent to the client' : 'Sent to the client for a yes');
+    } finally { this.busy.set(false); }
+  }
+  async markLive(p: WorkPost){ const r = await this.work.teamStatus(p.id, 'live'); if (r) { this.sel.set(r); this.data.toast('Marked live'); } else this.data.toast(this.work.error() || 'That did not save. Try again.'); }
 
   defs = computed<FilterDef[]>(() => [
     { key: 'show', label: 'Status', all: 'Every status', options: POST_STAGES.map(s => ({ value: s.key, label: s.label })) },
@@ -248,6 +302,7 @@ export class WorkPostsComponent implements OnInit, OnDestroy {
   waitingCount = computed(() => this.work.posts().filter(p => p.status === 'waiting' && !this.work.changeAsked(p)).length);
   waitingLine = computed(() => {
     const n = this.waitingCount();
+    if (this.work.isTeam()) return n === 0 ? 'Nothing waiting for the client' : n === 1 ? '1 waiting for the client' : `${n} waiting for the client`;
     return n === 0 ? 'Nothing waiting for your yes' : n === 1 ? '1 waiting for your yes' : `${n} waiting for your yes`;
   });
 
@@ -276,7 +331,7 @@ export class WorkPostsComponent implements OnInit, OnDestroy {
     const show = this.f()['show'];
     return POST_STAGES.filter(s => !show || s.key === show).map(s => ({
       key: s.key,
-      label: s.label,
+      label: this.statusLabel(s.key),
       posts: this.base().filter(p => p.status === s.key).sort((a, b) => {
         if (s.key === 'live') return b.slot.localeCompare(a.slot);
         return a.slot.localeCompare(b.slot);
@@ -286,7 +341,8 @@ export class WorkPostsComponent implements OnInit, OnDestroy {
 
   colMore(k: string) { this.colShown.set({ ...this.colShown(), [k]: (this.colShown()[k] || 15) + 15 }); }
 
-  statusLabel(s: PostStatus) { return POST_STAGES.find(x => x.key === s)?.label || s; }
+  /* the team reads the same board from the other side: a post waiting is waiting for the client */
+  statusLabel(s: PostStatus) { return s === 'waiting' && this.work.isTeam() ? 'Waiting for the client' : POST_STAGES.find(x => x.key === s)?.label || s; }
   statusPill(s: PostStatus) { return s === 'waiting' ? 'quoted' : s === 'planned' ? 'new' : 'won'; }
 
   open(p: WorkPost) { this.sel.set(p); this.asking.set(false); this.changeText.set(''); this.voice.set(null); this.deckNote.set(''); this.msg.set(''); }
@@ -297,18 +353,19 @@ export class WorkPostsComponent implements OnInit, OnDestroy {
     const p = this.sel(); if (!p || this.busy()) return;
     this.busy.set(true);
     try {
-      const next = this.work.approve(p.id);
-      if (next) this.data.toast('Approved. It goes out as planned.');
+      const next = await this.work.approve(p.id);
+      if (!next) return;
+      this.data.toast('Approved. It goes out as planned.');
       this.deck();
     } finally { this.busy.set(false); }
   }
 
   async sendChange() {
     const p = this.sel(); if (!p || this.busy()) return;
-    if (!this.changeText().trim() && !this.voice()) { this.msg.set('Write what should change, or record a voice note.'); return; }
+    if (!this.changeText().trim() && !this.voice()) { this.msg.set('Write what should change or record a voice note.'); return; }
     this.busy.set(true);
     try {
-      await this.work.askChange(p.id, this.changeText().trim(), this.voice() || undefined);
+      if (!(await this.work.askChange(p.id, this.changeText().trim(), this.voice() || undefined))) return;
       this.data.toast('Change sent to the team');
       this.deck();
     } finally { this.busy.set(false); }
@@ -354,9 +411,9 @@ export class WorkPostsComponent implements OnInit, OnDestroy {
 
   clearVoice() { this.voice.set(null); }
 
-  comment(p: WorkPost) {
+  async comment(p: WorkPost) {
     if (!this.sayText().trim()) return;
-    this.work.comment({ kind: 'post', id: p.id }, this.sayText().trim());
+    if (!(await this.work.comment({ kind: 'post', id: p.id }, this.sayText().trim()))) return;
     this.sayText.set(''); this.data.toast('Sent to the chat');
   }
 }

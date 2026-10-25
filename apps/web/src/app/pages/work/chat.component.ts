@@ -285,6 +285,9 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   private vvScroll = () => this.updateKb();
   private ro: ResizeObserver | null = null;
 
+  /* the team has seen the client's messages once a team member has the chat open (Stage 2): the client sees Seen */
+  private seesAll = effect(() => { this.work.msgs(); if (this.work.isTeam()) this.work.seeAll(); });
+
   ngOnInit(): void {
     this.work.init();
 
@@ -354,7 +357,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   mine(m: Msg): boolean {
-    return m.side === 'client' && m.by === this.work.me().name;
+    return m.side === this.work.me().side && m.by === this.work.me().name;
   }
 
   canTask(m: Msg): boolean {
@@ -374,8 +377,8 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy {
     }, 0);
   }
 
-  task(m: Msg): void {
-    const t = this.work.makeTask(m);
+  async task(m: Msg): Promise<void> {
+    const t = await this.work.makeTask(m);
     this.openId.set(null);
     if (t) {
       this.data.toast('Made a task. It is in Tasks.');

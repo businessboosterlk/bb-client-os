@@ -45,7 +45,7 @@ export interface WorkTask {
 
 export type PostStatus = 'waiting' | 'planned' | 'approved' | 'live';
 export type PostTone = 'brand' | 'ink' | 'cream';
-export interface PostVersion { v: number; caption: string; head: string; line?: string; tone: PostTone; at: string; }
+export interface PostVersion { v: number; caption: string; head: string; line?: string; tone: PostTone; at: string; art?: string; /* the real artwork, a file in the store (Stage 2) */ }
 export interface PostChange { at: string; by: string; v: number; text?: string; voice?: { media: string; secs: number }; }
 export interface WorkPost {
   id: string;

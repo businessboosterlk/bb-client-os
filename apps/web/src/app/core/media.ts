@@ -114,6 +114,13 @@ export async function getMedia(slug: string, id: string): Promise<Blob | null> {
 
 const urlMap = new Map<string, string>();
 
+/* STAGE 2: a real client's files live in the private store. What this device does not hold is read through a link the
+   server signs (core/work-remote.ts keeps each for 50 minutes); the work store sets this on sign in and clears it on the way out. */
+let remoteMedia: ((slug: string, id: string) => Promise<string>) | null = null;
+export function setRemoteMedia(fn: ((slug: string, id: string) => Promise<string>) | null): void {
+  remoteMedia = fn;
+}
+
 export async function mediaUrl(slug: string, id: string): Promise<string> {
   const key = `${slug}:${id}`;
   const existing = urlMap.get(key);
@@ -123,7 +130,14 @@ export async function mediaUrl(slug: string, id: string): Promise<string> {
 
   const blob = await getMedia(slug, id);
   if (!blob) {
-    return '';
+    if (!remoteMedia) {
+      return '';
+    }
+    try {
+      return await remoteMedia(slug, id);
+    } catch {
+      return '';
+    }
   }
 
   const url = URL.createObjectURL(blob);
