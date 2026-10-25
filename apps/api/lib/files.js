@@ -5,7 +5,8 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { mode, supa } from './store.js';
 
 const BUCKET = process.env.HUB_MEDIA_BUCKET || 'hub-media';
-const SECRET = process.env.HUB_SECRET || 'dev-only-secret';
+import { SECRET as SESSION } from './auth.js';
+const SECRET = SESSION || 'dev-only-secret';
 
 export async function signUpload(slug, id, path, mime) {
   if (mode === 'supabase') {

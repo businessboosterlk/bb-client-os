@@ -9,6 +9,7 @@
    on Vercel many copies of the API run at once and each would have counted on its own. The caller is stored as a
    hash, never the address itself. Rows older than a day are swept now and then by the wrong code path. */
 import { createHash } from 'node:crypto';
+import { SECRET } from './auth.js';
 import { mode, supa } from './store.js';
 const TRIES = Math.max(1, parseInt(process.env.HUB_LOCK_TRIES || '8', 10) || 8);
 const SECONDS = Math.max(1, parseInt(process.env.HUB_LOCK_SECONDS || '900', 10) || 900);
@@ -22,7 +23,7 @@ export function caller(req){
 const keys = (name, who) => [`n:${name}|${who}`, `c:${who}`];
 const live = k => { const e = book.get(k); if (!e) return null; if (Date.now() - e.first > SECONDS * 1000) { book.delete(k); return null; } return e; };
 
-const hashed = who => createHash('sha256').update((process.env.HUB_SECRET || 'dev') + '|' + who).digest('hex').slice(0, 32);
+const hashed = who => createHash('sha256').update((SECRET || 'dev') + '|' + who).digest('hex').slice(0, 32);
 /* seconds left on a lock, or 0 when the door is open to this caller for this business */
 export async function lockedFor(name, who){
   if (mode === 'supabase') {

@@ -2,12 +2,16 @@
    server, checked on every request, never stored. Ten days, then the door again. `seat` stays the person's name so
    every older route that stamps `by: s.seat` now stamps a real name (Stage 2, named seats, bb_pending 693). */
 import { createHmac, timingSafeEqual } from 'node:crypto';
-const SECRET = process.env.HUB_SECRET || (process.env.DATA_MODE === 'supabase' ? null : 'dev-only-secret');
+/* ONE KEY TO PASTE (Thulaib, 25 Oct 2026: "why can't you go and do this yourself?"). When HUB_SECRET is not set, the session
+   secret is made from the database's secret key, so the host needs only that one key. Rotating the database key therefore signs
+   everyone out once, which is the safe direction. HUB_SECRET, when set, still wins. */
+const SVC = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+export const SECRET = process.env.HUB_SECRET || (SVC ? createHmac('sha256', SVC).update('the-hub-session-v1').digest('base64url') : (process.env.DATA_MODE === 'supabase' ? null : 'dev-only-secret'));
 const b64 = s => Buffer.from(s).toString('base64url');
 const sign = body => createHmac('sha256', SECRET).update(body).digest('base64url');
 
 export function issue(slug, who){
-  if (!SECRET) throw new Error('HUB_SECRET is not set');
+  if (!SECRET) throw new Error('No session secret: set SUPABASE_SERVICE_ROLE_KEY (or HUB_SECRET)');
   const p = typeof who === 'string' ? { seat: who, name: who, role: '', side: 'client', pid: null } : { seat: who.name, name: who.name, role: who.role || '', side: who.side === 'bb' ? 'bb' : 'client', pid: who.id || null };
   const body = b64(JSON.stringify({ slug, ...p, exp: Date.now() + 10 * 86400000 }));
   return body + '.' + sign(body);

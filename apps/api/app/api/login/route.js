@@ -8,6 +8,11 @@ export const dynamic = 'force-dynamic';
    and a small delay, so nobody can tell the two apart by trying. After repeated wrong
    codes the door locks for that caller and that business (lib/lock.js). */
 export async function POST(req){
+  /* a door that cannot reach its database (no key yet, or the database down) says so in words, never a bare 500 */
+  try { return await door(req); }
+  catch { return Response.json({ error: 'The Hub cannot open right now. Try again in a few minutes.' }, { status: 503 }); }
+}
+async function door(req){
   const body = await req.json().catch(() => ({}));
   const who = caller(req);
   const client = await findClient(body.business);
