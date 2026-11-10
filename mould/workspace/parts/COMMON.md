@@ -34,3 +34,5 @@ HOUSE RULES FOR EVERY UI PART (the check tests them):
   real check; every <bb-drawer> body sits inside <ng-template #body> and its buttons inside <ng-template #foot>; a
   button's words carry their own colour (color:inherit or a token), never the browser's default; a file picker keeps the
   File objects, never their names.
+- A touch gesture (swipe, drag) decides its direction ONCE after 10px of movement and keeps it; a vertical start is a
+  scroll and the element never moves. A keyboard offset is read only while a field has focus and only above 120px.
