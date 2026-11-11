@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "BB Client OS: one app per client with two doors, the Library and the Sales system. Node and Next.js backend, Angular front end, cast per client from casts/<slug>.json.",
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "dev": "npm run dev --workspace apps/api & npm run start --workspace apps/web",
     "dev:api": "npm run dev --workspace apps/api",
@@ -15,7 +17,12 @@
   },
   "dependencies": {
     "next": "^15.5.0",
-    "@angular/core": "^19.2.0"
+    "@angular/core": "^21.2.0"
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22"
+  },
+  "overrides": {
+    "postcss": "^8.5.23"
+  }
 }
