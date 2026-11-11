@@ -8,6 +8,8 @@
 import { isAdmin, deny } from '../../../../lib/auth.js';
 import { mode, supa } from '../../../../lib/store.js';
 import { hashCode, newCode, norm } from '../../../../lib/clients.js';
+import { handle } from '../../../../lib/kit/handle.js';
+import { old } from '../../../../lib/kit-wire.js';
 export const dynamic = 'force-dynamic';
 const SIDES = new Set(['client', 'bb']);
 const clean = (v, n) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
@@ -16,7 +18,7 @@ async function prefixFor(s, slug, side){
   const { data } = await s.from('os_clients').select('name,config').eq('slug', slug).maybeSingle();
   return ((data?.config?.short || data?.name || 'HUB').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()) || 'HUB';
 }
-export async function POST(req){
+async function POST_(req){
   if (!isAdmin(req)) return deny('BB admin only', 403);
   if (mode !== 'supabase') return Response.json({ error: 'People need supabase mode' }, { status: 400 });
   const b = await req.json().catch(() => ({}));
@@ -28,7 +30,7 @@ export async function POST(req){
   if (error) return Response.json({ error: /os_people_one_name/.test(error.message) ? 'That name is already on this Hub' : error.message }, { status: 400 });
   return Response.json({ ...data, code }, { status: 201 });
 }
-export async function PATCH(req){
+async function PATCH_(req){
   if (!isAdmin(req)) return deny('BB admin only', 403);
   if (mode !== 'supabase') return Response.json({ error: 'People need supabase mode' }, { status: 400 });
   const b = await req.json().catch(() => ({}));
@@ -47,7 +49,7 @@ export async function PATCH(req){
   }
   return Response.json({ error: 'Say rotate or revoke' }, { status: 400 });
 }
-export async function GET(req){
+async function GET_(req){
   if (!isAdmin(req)) return deny('BB admin only', 403);
   if (mode !== 'supabase') return Response.json([]);
   const slug = norm(new URL(req.url).searchParams.get('slug'));
@@ -55,3 +57,8 @@ export async function GET(req){
   const { data, error } = await (await supa()).from('os_people').select('id,name,role,side,revoked_at,last_in_at,created_at').eq('client', slug).order('created_at', { ascending: true }).limit(200);
   return error ? Response.json({ error: error.message }, { status: 500 }) : Response.json(data);
 }
+
+/* every method through the kit: size cap, safe JSON, 500 with a ref (lib/kit-wire.js) */
+export const POST = handle(old(POST_));
+export const PATCH = handle(old(PATCH_));
+export const GET = handle(old(GET_));

@@ -4,8 +4,10 @@
 import { isAdmin, deny } from '../../../../lib/auth.js';
 import { mode, supa } from '../../../../lib/store.js';
 import { hashCode, newCode, norm } from '../../../../lib/clients.js';
+import { handle } from '../../../../lib/kit/handle.js';
+import { old } from '../../../../lib/kit-wire.js';
 export const dynamic = 'force-dynamic';
-export async function POST(req){
+async function POST_(req){
   if (!isAdmin(req)) return deny('BB admin only', 403);
   if (mode !== 'supabase') return Response.json({ error: 'Onboarding needs supabase mode' }, { status: 400 });
   const b = await req.json().catch(() => ({}));
@@ -26,7 +28,7 @@ export async function POST(req){
   if (error) return Response.json({ error: error.message }, { status: 500 });
   return Response.json({ slug, aliases, people: 'add them with POST /api/bb/people', group: !!bb.group });
 }
-export async function GET(req){
+async function GET_(req){
   if (!isAdmin(req)) return deny('BB admin only', 403);
   if (mode !== 'supabase') return Response.json([]);
   const db = await supa(), data = [];
@@ -38,3 +40,7 @@ export async function GET(req){
   }
   return Response.json(data.map(c => ({ ...c, seats: (c.seats || []).map(s => ({ label: s.label, issued_at: s.issued_at, revoked: !!s.revoked })) })));
 }
+
+/* every method through the kit: size cap, safe JSON, 500 with a ref (lib/kit-wire.js) */
+export const POST = handle(old(POST_));
+export const GET = handle(old(GET_));

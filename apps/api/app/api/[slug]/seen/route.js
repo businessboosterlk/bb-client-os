@@ -4,10 +4,12 @@
    December question, do clients come back without being asked. */
 import { store } from '../../../../lib/store.js';
 import { session, deny } from '../../../../lib/auth.js';
+import { handle } from '../../../../lib/kit/handle.js';
+import { old } from '../../../../lib/kit-wire.js';
 export const dynamic = 'force-dynamic';
 const WHAT = new Set(['open', 'view', 'tap']), SRC = new Set(['wa', 'app', 'bb', 'direct']);
 const text = (v, n) => String(v ?? '').slice(0, n);
-export async function POST(req, { params }){
+async function POST_(req, { params }){
   const { slug } = await params;
   const s = session(req, slug); if (!s) return deny();
   const b = await req.json().catch(() => null);
@@ -19,3 +21,7 @@ export async function POST(req, { params }){
   return Response.json({ ok: true }, { status: 201 });
 }
 export async function OPTIONS(){ return new Response(null, { status: 204 }); }
+
+/* every method through the kit: size cap, safe JSON, 500 with a ref (lib/kit-wire.js) */
+const SEEN = { what: { type: 'string', max: 20 }, detail: { type: 'string' }, href: { type: 'string' }, src: { type: 'string', max: 20 } };
+export const POST = handle(old(POST_), { schema: SEEN });
